@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# Environment — .env.example is committed; .env holds real secrets
+.env
+
+downloads/
+llm/
+
+# collectstatic output — rebuilt on every deploy
+staticfiles/
+
+
+# OS cruft
+.DS_Store
+
+# DB dumps — the backup is 700MB+
+db/backups/

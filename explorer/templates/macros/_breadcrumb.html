@@ -1,0 +1,6 @@
+{# Breadcrumb back-link under the site header (report / org / dataset pages). #}
+{% macro breadcrumb(href, label) %}
+  <p class="subtitle">
+    <a href="{{ href }}" class="breadcrumb-link">← {{ label }}</a>
+  </p>
+{% endmacro %}

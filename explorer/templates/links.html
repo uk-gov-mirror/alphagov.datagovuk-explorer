@@ -1,0 +1,64 @@
+{% extends "_report.html" %}
+
+{% block report_header %}
+  <h1>Links</h1>
+
+  <p class="count">{{ start_index | num }}-{{ end_index | num }} of {{ filtered_links | num }}</p>
+
+  {% if current_host or current_format or current_year %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% if current_host %}
+        {% set host_name = "No URL" if current_host == "__none__" else current_host %}
+        {{ filter_pill("Domain", host_name, facet_url("host", "") , "Remove domain filter: " ~ host_name) }}
+      {% endif %}
+      {% if current_format %}
+        {% set format_name = "No format" if current_format == "__none__" else current_format %}
+        {{ filter_pill("Format", format_name, facet_url("format", "") , "Remove format filter: " ~ format_name) }}
+      {% endif %}
+      {% if current_year %}
+        {{ filter_pill("Year", current_year, facet_url("year", "") , "Remove year filter: " ~ current_year) }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}
+    {{ facet_group(g, facet_url) }}
+  {% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("name", "Name", sort, dir, facet_qs) }}</th>
+          <th>{{ sort_link("host", "Host", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("format", "Format", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("dataset_title", "Dataset", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("org_display_name", "Organisation", sort, dir, facet_qs) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in links %}
+          <tr>
+            <th scope="row" class="col-text">{{ resource_name(l.name, l.description, l.url, title=l.url) }}</th>
+            <td class="host-cell" title="{{ l.host or '' }}">{{ l.host or "—" }}</td>
+            <td class="col-text">{{ format_badge(l.format, l.format_raw) }}</td>
+            <td class="col-text">
+              <a href="/dataset/{{ l.org_slug }}/{{ l.dataset_id }}">{{ l.dataset_title }}</a>
+            </td>
+            <td class="col-text">
+              <a href="/organisation/{{ l.org_slug }}">{{ l.org_display_name }}</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {{ pagination(page, total_pages, sort, dir, facet_qs) }}
+
+  <script defer src="{{ static('links.js') }}"></script>
+{% endblock report_table %}

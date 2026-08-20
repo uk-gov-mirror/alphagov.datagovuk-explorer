@@ -1,0 +1,65 @@
+/* ---------------------------------------------------------------------------
+ * layout.css — site header, nav and footer.
+ * Loaded on every page (second stylesheet in _layout.njk).
+ * ------------------------------------------------------------------------- */
+
+.site-header {
+	background: var(--color-surface);
+	border-bottom: 1px solid var(--color-border);
+	box-shadow: var(--shadow);
+}
+
+.header-inner {
+	width: 100%;
+	padding: 20px 20px 0 20px;
+	display: flex;
+	align-items: end;
+	justify-content: space-between;
+	flex-wrap: wrap;
+}
+
+.site-title {
+	display: flex;
+	flex-grow: 1;
+	align-items: end;
+	gap: 0.6rem;
+	text-decoration: none;
+	margin-bottom: 20px;
+	margin-right: 20px;
+}
+
+.wordmark-sub {
+	font-size: 1.77rem;
+	font-weight: 500;
+	color: var(--color-muted);
+	line-height: 1.2;
+}
+
+.site-nav {
+	display: flex;
+	row-gap: 10px;
+	column-gap: 20px;
+	flex-wrap: wrap;
+}
+
+.nav-link {
+	font-size: var(--text-subheading);
+	font-weight: normal;
+	color: var(--color-muted);
+	text-decoration: none;
+	padding: 16px 6px;
+	border-bottom: 3px solid transparent;
+	transition:
+		color var(--transition),
+		border-color var(--transition);
+}
+
+.nav-link:hover {
+	color: var(--color-text);
+	border-bottom-color: var(--color-border);
+}
+
+.nav-link--active {
+	color: var(--color-accent);
+	border-bottom-color: var(--color-accent);
+}

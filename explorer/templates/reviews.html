@@ -1,0 +1,61 @@
+{% extends "_report.html" %}
+
+{% block report_header %}
+  <h1>Reviews</h1>
+
+  <p class="count">{{ start_index | num }}-{{ end_index | num }} of {{ shown | num }}</p>
+
+  {% if filters.overall or filters.findability or filters.metadata or filters.resources %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% for g in facet_groups %}
+        {% if filters[g.key] %}
+          {% set value_name = "No score" if filters[g.key] == "none" else filters[g.key] + "/5" %}
+          {{ filter_pill(g.label, value_name, facet_url(g.key, "") , "Remove " ~ g.label | lower ~ " filter: " ~ value_name) }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}
+    {{ facet_group(g, facet_url) }}
+  {% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("title", "Dataset", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("org", "Organisation", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("overall", "Overall", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("findability", "Findability", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("metadata", "Metadata", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("resources", "Resources", sort, dir, facet_qs) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+          <tr>
+            <th scope="row" class="col-text">
+              <a href="/dataset/{{ r.org_slug }}/{{ r.dataset_id }}">{{ r.title }}</a>
+            </th>
+            <td class="col-text">
+              <a href="/organisation/{{ r.org_slug }}">{{ r.org_display_name }}</a>
+            </td>
+            <td class="col-num">
+              <span class="score-badge score-{{ r.overall }}">{{ r.overall }}/5</span>
+            </td>
+            <td class="col-num">{{ r.scores.findability.score if r.scores.findability else "—" }}/5</td>
+            <td class="col-num">{{ r.scores.metadata.score if r.scores.metadata else "—" }}/5</td>
+            <td class="col-num">{{ r.scores.resources.score if r.scores.resources else "—" }}/5</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {{ pagination(page, total_pages, sort, dir, facet_qs) }}
+{% endblock report_table %}

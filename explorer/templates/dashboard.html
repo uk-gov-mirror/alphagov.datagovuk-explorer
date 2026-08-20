@@ -1,0 +1,60 @@
+{% extends "_layout.html" %}
+
+{# Each card is listed by name below, so the order on the page is easy to
+   see and re-arrange — just move a line. The macro hides the card when its
+   count is zero; label + count come from `cards` (keyed by report key, built
+   from the REPORTS definitions in explorer/queries/reports.py) so the label
+   stays in sync with the report pages. #}
+{% macro dashboard_card(key) %}
+  {% if cards[key].count %}
+    <a href="{{ cards[key].href }}" class="dashboard-card">
+      <span class="dashboard-card-count">{{ cards[key].count | num }}
+        {% if cards[key].percent is not none %}
+          <span class="dashboard-card-percent">{{ cards[key].percent | percent }}</span>
+        {% endif %}
+      </span>
+      <span class="dashboard-card-label">{{ cards[key].label }}</span>
+    </a>
+  {% endif %}
+{% endmacro %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/pages/dashboard.css') }}" />
+{% endblock styles %}
+
+{% block content %}
+
+<div class="dashboard">
+
+    <div class="dashboard-group">
+        <h2 class="dashboard-group-title">Organisations <span class="dashboard-group-count">{{ total_orgs  | num }}</span></h2>
+        {{ dashboard_card("orgs-no-datasets") }}
+        {{ dashboard_card("orgs-active") }}
+    </div>
+
+    <div class="dashboard-group">
+        <h2 class="dashboard-group-title">Datasets <span class="dashboard-group-count">{{ total_datasets  | num }}</span></h2>
+        {{ dashboard_card("datasets-no-links") }}
+        {{ dashboard_card("datasets-duplicate-titles") }}
+        {{ dashboard_card("datasets-withdrawn") }}
+        {{ dashboard_card("datasets-no-description") }}
+        {{ dashboard_card("datasets-short-title") }}
+        {{ dashboard_card("datasets-short-description") }}
+        {{ dashboard_card("datasets-no-theme") }}
+        {# Positive finding — kept last in the group so the problem cards
+            read first, and the description on the report page says so. #}
+        {{ dashboard_card("datasets-has-api") }}
+    </div>
+
+    <div class="dashboard-group">
+        <h2 class="dashboard-group-title">Links <span class="dashboard-group-count">{{ total_links  | num }}</span></h2>
+        {{ dashboard_card("links-no-url") }}
+        {{ dashboard_card("links-no-name") }}
+        {{ dashboard_card("links-bad-url") }}
+        {{ dashboard_card("links-no-format") }}
+        {{ dashboard_card("links-duplicate-urls") }}
+    </div>
+
+</div>
+
+{% endblock content %}

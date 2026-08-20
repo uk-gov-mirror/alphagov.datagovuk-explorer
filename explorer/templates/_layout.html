@@ -1,0 +1,62 @@
+{# Site-wide macros — imported once here so every page that extends
+   this layout (directly or via _report.html) gets all of them. #}
+{% from "macros/_bar_chart.html" import bar_chart %}
+{% from "macros/_breadcrumb.html" import breadcrumb %}
+{% from "macros/_facet_group.html" import facet_group %}
+{% from "macros/_filter_pill.html" import filter_pill %}
+{% from "macros/_format_badge.html" import format_badge %}
+{% from "macros/_harvested_badge.html" import harvested_badge %}
+{% from "macros/_pagination.html" import pagination %}
+{% from "macros/_resource_name.html" import resource_name %}
+{% from "macros/_sort_link.html" import sort_link %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ static('css/base.css') }}" />
+    <link rel="stylesheet" href="{{ static('css/layout.css') }}" />
+    <link rel="stylesheet" href="{{ static('css/components/table.css') }}" />
+    <link rel="stylesheet" href="{{ static('css/components/badges.css') }}" />
+    <link rel="stylesheet" href="{{ static('css/components/pagination.css') }}" />
+    {% block styles %}
+    {% endblock styles %}
+  </head>
+  <body>
+    {% macro nav_link(href, label, active_section) %}
+      <a href="{{ href }}"
+         class="nav-link{% if section == active_section %} nav-link--active{% endif %}"
+         {% if section == active_section %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endmacro %}
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="/" class="site-title">
+            <img src="{{ static('images/logo-ndl.svg') }}" alt="Home">
+          <span class="wordmark-sub">Explorer</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          {{ nav_link('/', 'Home', 'dashboard') }}
+          {{ nav_link('/organisations', 'Organisations', 'orgs') }}
+          {{ nav_link('/datasets', 'Datasets', 'datasets') }}
+          {{ nav_link('/links', 'Links', 'links') }}
+          {{ nav_link('/metadata', 'Metadata', 'metadata') }}
+          {{ nav_link('/series', 'Series', 'series') }}
+          {{ nav_link('/reviews', 'Reviews', 'reviews') }}
+          {{ nav_link('/suggestions', 'Suggestions', 'suggestions') }}
+        </nav>
+      </div>
+      {% block header %}
+      {% endblock header %}
+    </header>
+
+    <main class="container{% if narrow %} container--narrow{% endif %}">
+      {% block page_header %}
+      {% endblock page_header %}
+      {% block content %}
+      {% endblock content %}
+    </main>
+  </body>
+</html>

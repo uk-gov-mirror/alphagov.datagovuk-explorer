@@ -1,0 +1,352 @@
+{% extends "_layout.html" %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/pages/dataset.css') }}" />
+{% endblock styles %}
+
+{% macro detail(name, value, cls) %}
+  {% if value is defined and value is not none and value != "" %}
+    <dt>{{ name }}</dt>
+    <dd {% if cls %}class="{{ cls }}"{% endif %}>
+      {{ value }}
+    </dd>
+  {% endif %}
+{% endmacro %}
+
+{% block header %}
+  {{ breadcrumb("/organisation/" ~ org.slug, org.display_name) }}
+{% endblock header %}
+
+{% block content %}
+  <article class="dataset-detail">
+    <h1>
+      <a href="https://www.data.gov.uk/dataset/{{ dataset.name }}" target="_blank" rel="noopener">
+        {{ dataset.title or dataset.name }}
+      </a>
+    </h1>
+    {% if review and review.suggested_title and review.suggested_title != dataset.title %}
+      <p class="review-suggested review-suggested--title">
+        <span class="badge badge-suggestion">Suggestion</span> {{ review.suggested_title }}
+      </p>
+    {% endif %}
+
+    {# ── Description ── #}
+    {% if dataset.notes %}
+      <section class="section">
+        <div class="notes-content">{{ dataset.notes | safe }}</div>
+      </section>
+    {% endif %}
+    {% if review and review.suggested_description %}
+      <p class="review-suggested review-suggested--desc">
+        <span class="badge badge-suggestion">Suggestion</span> {{ review.suggested_description }}
+      </p>
+    {% endif %}
+
+    {# ── LLM review (temp, from the JSONL) ── #}
+    {% if review %}
+      <section class="section review-block">
+        <h3>LLM review</h3>
+        <div class="review-scores">
+          <span class="score-badge score-{{ review.overall }}">Overall {{ review.overall }}/5</span>
+        </div>
+        <ul class="review-criteria">
+          <li>
+            <span class="score-badge score-{{ review.scores.findability.score }}">Findability {{ review.scores.findability.score if review.scores.findability else "—" }}/5</span>
+            <span class="review-explanation">{{ review.scores.findability.explanation }}</span>
+          </li>
+          <li>
+            <span class="score-badge score-{{ review.scores.metadata.score }}">Metadata {{ review.scores.metadata.score if review.scores.metadata else "—" }}/5</span>
+            <span class="review-explanation">{{ review.scores.metadata.explanation }}</span>
+          </li>
+          <li>
+            <span class="score-badge score-{{ review.scores.resources.score }}">Resources {{ review.scores.resources.score if review.scores.resources else "—" }}/5</span>
+            <span class="review-explanation">{{ review.scores.resources.explanation }}</span>
+          </li>
+        </ul>
+      </section>
+    {% endif %}
+
+    {# ── Core metadata ── #}
+    <section>
+      <h3>Core metadata</h3>
+      <dl class="detail-list">
+        {{ detail("Name (slug)", dataset.name) }}
+        {{ detail("Dataset ID", dataset.id) }}
+        {{ detail("Organisation", org.display_name) }}
+        {{ detail("Open", "Yes" if dataset.isopen else "No") }}
+        {{ detail("Version", dataset.version) }}
+        {{ detail("URL", dataset.url) }}
+        {{ detail("Creator user ID", dataset.creator_user_id) }}
+        {{ detail("Owner org ID", dataset.owner_org) }}
+
+        {{ detail("Created", dataset.metadata_created | truncate(10, false, "") | safe if dataset.metadata_created else "") }}
+        {{ detail("Last modified", dataset.metadata_modified | truncate(10, false, "") | safe if dataset.metadata_modified else "") }}
+        {{ detail("Harvested", "Yes" if harvested else "No") }}
+        {% if harvest_source %}{{ detail("Harvest source", harvest_source) }}{% endif %}
+      </dl>
+    </section>
+
+    {# ── License ── #}
+    {% if dataset.license_title or dataset.license_id %}
+      <section class="section">
+        <h3>License</h3>
+        <dl class="detail-list">
+          {{ detail("License title", dataset.license_title) }}
+          {{ detail("License ID", dataset.license_id) }}
+        </dl>
+      </section>
+    {% endif %}
+
+    {# ── Themes ── #}
+    {% set themePrimary = dataset["theme-primary"] %}
+    {% set themeSecondary = dataset["theme-secondary"] %}
+    {% if themePrimary or (themeSecondary and themeSecondary | length) or classification %}
+      <section class="section">
+        <h3>Themes</h3>
+        <dl class="detail-list">
+          {{ detail("Primary theme", themePrimary) }}
+          {% if themeSecondary and themeSecondary | length %}
+            <dt>Secondary themes</dt>
+            <dd>
+              {{ themeSecondary | join(", ") }}
+            </dd>
+          {% endif %}
+          {% if classification and classification.theme %}
+            <dt>LLM-suggested theme</dt>
+            <dd>
+              <span class="classification-theme">{{ classification.theme }}</span>
+              <span class="classification-confidence confidence-{{ classification.theme_confidence }}">({{ classification.theme_confidence }} confidence)</span>
+            </dd>
+          {% endif %}
+        </dl>
+      </section>
+    {% endif %}
+
+    {# ── Temporal coverage (strings precomputed in the dataset view) ── #}
+    {% if temporal.from or temporal.to or temporal.granularity %}
+      <section class="section">
+        <h3>Temporal coverage</h3>
+        <dl class="detail-list">
+          {{ detail("From", temporal.from) }}
+          {{ detail("To", temporal.to) }}
+          {{ detail("Granularity", temporal.granularity) }}
+        </dl>
+      </section>
+    {% endif %}
+
+    {# ── Resources ── #}
+    {% if dataset.resources and dataset.resources | length %}
+      <section class="section">
+        <h3>Resources ({{ dataset.resources | length | num }})</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-num">{{ sort_link("position", "#", sort, dir) }}</th>
+                <th class="col-text">{{ sort_link("name", "Name", sort, dir) }}</th>
+                <th class="col-text">{{ sort_link("format", "Format", sort, dir) }}</th>
+                <th class="col-text">{{ sort_link("mimetype", "MIME type", sort, dir) }}</th>
+                <th class="col-num">{{ sort_link("size", "Size", sort, dir) }}</th>
+                <th class="col-date">{{ sort_link("created", "Created", sort, dir) }}</th>
+                <th class="col-date">{{ sort_link("last_modified", "Updated", sort, dir) }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in dataset.resources %}
+                <tr>
+                  <td class="col-num">{{ (r.position or loop.index) | num }}</td>
+                  <th scope="row" class="col-text">{{ resource_name(r.name, r.description, r.url, fallback="(unnamed)") }}</th>
+                  <td class="col-text">{{ format_badge(r.format, fallback="?") }}</td>
+                  <td class="col-text">{{ r.mimetype or "—" }}</td>
+                  <td class="col-num">{{ r.size | num }}</td>
+                  <td class="col-date">{{ (r.created or "") | truncate(10, false, "") or "—" }}</td>
+                  {% set createdDate = (r.created or "") | truncate(10, false, "") %}
+                  {% set updatedDate = (r.last_modified or r.metadata_modified or "") | truncate(10, false, "") %}
+                  <td class="col-date{% if createdDate and updatedDate and createdDate != updatedDate %} updated-diff{% endif %}">
+                    {{ updatedDate or "—" }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    {# ── Tags ── #}
+    {% if dataset.tags and dataset.tags | length %}
+      <section class="section">
+        <h3>Tags</h3>
+        <div class="tags">
+          {% for tag in dataset.tags %}<span class="tag">{{ tag.display_name or tag.name }}</span>{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {# ── LLM-suggested tags ── #}
+    {% if classification and classification.tags and classification.tags | length %}
+      <section class="section">
+        <h3>LLM-suggested tags</h3>
+        <div class="tags">
+          {% for tag in classification.tags %}<span class="tag tag--suggested">{{ tag }}</span>{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {# ── Groups ── #}
+    {% if dataset.groups and dataset.groups | length %}
+      <section class="section">
+        <h3>Groups ({{ dataset.groups | length | num }})</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-text">Name</th>
+              <th class="col-text">Title</th>
+              <th class="col-text">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in dataset.groups %}
+              <tr>
+                <th scope="row" class="col-text">{{ g.name or g.id }}</th>
+                <td class="col-text">{{ g.display_name or g.title }}</td>
+                <td class="col-text">{{ (g.description or "") | truncate(120) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+
+    {# ── Extras ── #}
+    {% if dataset.extras and dataset.extras | length %}
+      <section class="section">
+        <h3>Extras ({{ dataset.extras | length | num }})</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in dataset.extras %}
+              <tr>
+                <th scope="row" class="extra-key">{{ e.key }}</th>
+                <td class="extra-value">{{ (e.value or "") | truncate(200) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+
+    {# ── Relationships ── #}
+    {% if dataset.relationships_as_subject and dataset.relationships_as_subject | length %}
+      <section class="section">
+        <h3>Relationships as subject ({{ dataset.relationships_as_subject | length | num }})</h3>
+        <div class="json-block">
+          <pre>{{ dataset.relationships_as_subject | dump(2) | safe }}</pre>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if dataset.relationships_as_object and dataset.relationships_as_object | length %}
+      <section class="section">
+        <h3>Relationships as object ({{ dataset.relationships_as_object | length | num }})</h3>
+        <div class="json-block">
+          <pre>{{ dataset.relationships_as_object | dump(2) | safe }}</pre>
+        </div>
+      </section>
+    {% endif %}
+
+    {# ── Series membership — other datasets sharing the same title root ── #}
+    {% if series and series_datasets | length %}
+      <section class="section">
+        <h3>Datasets in this series</h3>
+        <p class="subtitle">
+          {% set otherCount = series.dataset_count - 1 %}
+          <a href="/series/{{ series.id }}">{{ series.root_title }}</a>
+          —
+          {% if series.type == 'template' %}
+            <span class="badge badge-template">Template</span>
+          {% else %}
+            <span class="badge badge-timeseries">Timeseries</span>
+          {% endif %}
+          {% if series_datasets | length < otherCount %}
+            — showing {{ series_datasets | length | num }} of {{ otherCount | num }} other dataset
+            {% if otherCount != 1 %}s{% endif %}
+          {% endif %}
+        </p>
+        <div class="table-wrap">
+          <table class="data-table data-table--wide-first">
+            <thead>
+              <tr>
+                <th>Dataset</th>
+                {% if series.type == 'timeseries' %}<th>Period</th>{% endif %}
+                <th>Organisation</th>
+                <th class="col-date">Created</th>
+                <th>Theme</th>
+                <th class="col-num">Resources</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ds in series_datasets %}
+                <tr>
+                  <td class="col-text">
+                    <a href="/dataset/{{ ds.org_slug }}/{{ ds.id }}">{{ ds.title }}</a>
+                  </td>
+                  {% if series.type == 'timeseries' %}<td>{{ ds.date_suffix or '—' }}</td>{% endif %}
+                  <td class="col-text">
+                    <a href="/organisation/{{ ds.org_slug }}">{{ ds.org_display_name }}</a>
+                  </td>
+                  <td class="col-date">{{ ds.metadata_created | date_short if ds.metadata_created else '—' }}</td>
+                  <td class="col-text">{{ ds.theme_primary or '—' }}</td>
+                  <td class="col-num">{{ ds.resource_count | num }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    {# ── Related datasets — lexical (FTS5) vs semantic (embeddings) ── #}
+    {% if (related and related | length) or (semantic_related and semantic_related | length) %}
+      <section class="section">
+        <h3>Related datasets</h3>
+        <div class="related-compare">
+          {% if related and related | length %}
+            <div class="related-col">
+              <h4>Lexical (FTS5 BM25)</h4>
+              <ul class="related-list">
+                {% for r in related %}
+                  <li>
+                    <a href="/dataset/{{ r.org_slug }}/{{ r.id }}">{{ r.title }}</a>
+                    <span class="related-org">{{ r.org_display_name }}</span>
+                    {% if r.theme_primary %}<span class="related-theme">{{ r.theme_primary }}</span>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+          {% if semantic_related and semantic_related | length %}
+            <div class="related-col">
+              <h4>Semantic (bge-base-en-v1.5)</h4>
+              <ul class="related-list">
+                {% for r in semantic_related %}
+                  <li>
+                    <a href="/dataset/{{ r.org_slug }}/{{ r.id }}">{{ r.title }}</a>
+                    <span class="related-org">{{ r.org_display_name }}</span>
+                    {% if r.theme_primary %}<span class="related-theme">{{ r.theme_primary }}</span>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+
+  </article>
+{% endblock content %}

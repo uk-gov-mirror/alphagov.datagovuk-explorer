@@ -1,0 +1,61 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+  {{ breadcrumb('/metadata', 'Metadata fields') }}
+
+  <h1>{{ field_label }}</h1>
+  <p class="subtitle">
+    {{ non_empty_count | num }} datasets have a value set
+    {% if non_empty_count != dataset_count %}
+      ({{ dataset_count | num }} have the field, {{ (dataset_count - non_empty_count) | num }} empty)
+    {% endif %}
+    .
+  </p>
+
+  {% if rows | length %}
+    <div class="table-wrap">
+      <table class="data-table data-table--wide-first">
+        <thead>
+          <tr>
+            <th>Value</th>
+            <th class="col-num">Count</th>
+            <th class="col-num">% of field</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>
+                {% if r.value != '(empty)' and r.value != '__other__' %}
+                  <a href="/datasets?metadata_key={{ field_key | urlencode }}&metadata_value={{ r.value | urlencode }}"><code>{{ r.value }}</code></a>
+                {% else %}
+                  <code>{{ r.value }}</code>
+                {% endif %}
+              </td>
+              <td class="col-num">{{ r.count | num }}</td>
+              <td class="col-num">{{ (r.count / dataset_count * 100) | round1 }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if total_pages > 1 %}
+      <nav class="pagination" aria-label="Pagination">
+        {% if page > 1 %}<a class="page-link" href="?page={{ page - 1 }}">← Previous</a>{% endif %}
+        {% for p in range(1, total_pages + 1) %}
+          {% if p == page %}
+            <span class="page-link page-link--active">{{ p }}</span>
+          {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+          {% elif p == page - 3 or p == page + 3 %}
+            <span class="page-link page-link--ellipsis">…</span>
+          {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a class="page-link" href="?page={{ page + 1 }}">Next →</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p>No values recorded for this field.</p>
+  {% endif %}
+{% endblock content %}

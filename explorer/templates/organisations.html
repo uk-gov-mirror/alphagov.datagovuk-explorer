@@ -1,0 +1,68 @@
+{% extends "_report.html" %}
+
+{% block report_header %}
+  <h1>Organisations</h1>
+
+  <p class="count">1-{{ shown_orgs | num }} of {{ total_orgs | num }}</p>
+
+  {% if year or pubyear or datasets %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% if datasets %}
+        {{ filter_pill("Datasets", datasets_label, facet_url("datasets", "") , "Remove datasets filter: " ~ datasets_label) }}
+      {% endif %}
+      {% if year %}{{ filter_pill("Year", year, facet_url("year", "") , "Remove year filter: " ~ year) }}{% endif %}
+      {% if pubyear %}
+        {{ filter_pill("Published in", pubyear, facet_url("pubyear", "") , "Remove year-last-published filter: " ~ pubyear) }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}
+    {{ facet_group(g, facet_url) }}
+  {% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("name", "Organisation", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("dataset_count", "Datasets", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("resource_count", "Resources", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("views", "Views", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("state", "Status", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("approval_status", "Approved", sort, dir, facet_qs) }}</th>
+          <th class="col-date">{{ sort_link("created", "Created", sort, dir, facet_qs) }}</th>
+          <th class="col-date">{{ sort_link("last_published", "Last published", sort, dir, facet_qs) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org in orgs %}
+          <tr>
+            <th scope="row" class="col-text">
+              {% if org.has_data %}
+                <a href="/organisation/{{ org.slug }}">{{ org.name }}</a>
+              {% else %}
+                {{ org.name }}
+              {% endif %}
+            </th>
+            <td class="col-num">{{ org.dataset_count | num }}</td>
+            <td class="col-num">{{ org.resource_count | num }}</td>
+            <td class="col-num">{{ org.views | num }}</td>
+            <td class="col-text">
+              <span class="badge badge-{{ org.state }}">{{ org.state }}</span>
+            </td>
+            <td class="col-text">
+              <span class="badge badge-{{ org.approval_status }}">{{ org.approval_status }}</span>
+            </td>
+            <td class="col-date">{{ org.created }}</td>
+            <td class="col-date">{{ org.last_published }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock report_table %}

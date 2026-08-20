@@ -1,0 +1,177 @@
+{% extends "_report.html" %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ static('css/pages/report.css') }}" />
+{% endblock styles %}
+
+{% block header %}
+  {% if detail_url %}
+    {{ breadcrumb('/report/links-duplicate-urls', 'Duplicate URLs across datasets') }}
+  {% else %}
+    {{ breadcrumb('/', 'Dashboard') }}
+  {% endif %}
+{% endblock header %}
+
+{% block report_header %}
+  <h1>{{ current.label }}</h1>
+
+  {% if detail_url %}
+    <p class="report-description url-detail-url">
+      <a href="{{ detail_url }}" target="_blank" rel="noopener noreferrer">{{ detail_url }}</a>
+    </p>
+  {% else %}
+    <p class="report-description">{{ current.description }}</p>
+  {% endif %}
+
+  {% if active_facets %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% for f in active_facets %}
+        {{ filter_pill(f.label, f.current_name, facet_url(f.key, "") , "Remove " ~ f.label | lower ~ " filter: " ~ f.current_name) }}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <p class="count">
+    {{ current.count | num }} total
+    {% if total_pages > 1 %}
+      <span class="page-info">— showing {{ start_index | num }}-{{ end_index | num }} (page {{ page }} of {{ total_pages }})</span>
+    {% endif %}
+  </p>
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}{{ facet_group(g, facet_url) }}{% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table{% if current.kind == "links" or current.show_api_links %} data-table--report{% endif %}">
+      {% if current.kind == "datasets" %}
+        {% if current.show_api_links %}
+          <colgroup>
+            <col class="col-api-dataset" />
+            <col class="col-api-org" />
+            <col class="col-api-date" />
+            <col class="col-api-date" />
+            <col class="col-api-views" />
+            <col class="col-api-resources" />
+          </colgroup>
+        {% endif %}
+        <thead>
+          <tr>
+            <th class="col-text">Dataset</th>
+            <th class="col-text">Organisation</th>
+            <th class="col-date">Created</th>
+            <th class="col-date">Modified</th>
+            <th class="col-num">Views</th>
+            {% if current.show_api_links %}<th class="col-text">API resources</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row" class="col-text">
+                <a href="/dataset/{{ row.org_slug }}/{{ row.id }}">{{ row.title or row.name }}</a>
+              </th>
+              <td class="col-text">
+                <a href="/organisation/{{ row.org_slug }}">{{ row.org_display_name }}</a>
+              </td>
+              <td class="col-date">{{ row.metadata_created | date_short }}</td>
+              <td class="col-date">{{ row.metadata_modified | date_short }}</td>
+              <td class="col-num">{{ row.views | num }}</td>
+              {% if current.show_api_links %}
+                <td class="col-text api-resources-cell">
+                  {% if row.api_links %}
+                    <ul class="api-resources">
+                      {% for link in row.api_links %}
+                        <li class="api-resource">
+                          {% if link.url %}
+                            <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer">{{ link.name or link.url }}</a>
+                          {% else %}
+                            {{ link.name or "—" }}
+                          {% endif %}
+                          {% if link.format %}<span class="api-resource-format">{{ format_badge(link.format) }}</span>{% endif %}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% elif current.kind == "duplicate-urls" %}
+        <colgroup>
+          <col class="col-url" />
+          <col class="col-num" />
+          <col class="col-num" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-text">URL</th>
+            <th class="col-num">Datasets</th>
+            <th class="col-num">Organisations</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row" class="col-text">
+                <a href="?url={{ row.url | urlencode }}">{{ row.url }}</a>
+              </th>
+              <td class="col-num">{{ row.dataset_count | num }}</td>
+              <td class="col-num">{{ row.org_count | num }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% else %}
+        <colgroup>
+          {% if "name" not in current.hidden_cols %}<col class="col-name" />{% endif %}
+          {% if "url" not in current.hidden_cols %}<col class="col-url" />{% endif %}
+          {% if "format" not in current.hidden_cols %}<col class="col-format" />{% endif %}
+          <col class="col-dataset" />
+          <col class="col-org" />
+        </colgroup>
+        <thead>
+          <tr>
+            {% if "name" not in current.hidden_cols %}<th class="col-text">Name</th>{% endif %}
+            {% if "url" not in current.hidden_cols %}<th>URL</th>{% endif %}
+            {% if "format" not in current.hidden_cols %}<th class="col-text">Format</th>{% endif %}
+            <th class="col-text">Dataset</th>
+            <th class="col-text">Organisation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% if "name" not in current.hidden_cols %}
+                <th scope="row" class="col-text">{{ resource_name(row.name, row.description) }}</th>
+              {% endif %}
+              {% if "url" not in current.hidden_cols %}
+                <td class="url-cell" title="{{ row.url or "" }}">
+                  {% if row.url and row.host %}
+                    <a href="{{ row.url }}" target="_blank" rel="noopener noreferrer">{{ row.url }}</a>
+                  {% else %}
+                    {{ row.url or "—" }}
+                  {% endif %}
+                </td>
+              {% endif %}
+              {% if "format" not in current.hidden_cols %}<td class="col-text">{{ format_badge(row.format) }}</td>{% endif %}
+              <td class="col-text">
+                <a href="/dataset/{{ row.org_slug }}/{{ row.dataset_id }}">{{ row.dataset_title }}</a>
+              </td>
+              <td class="col-text">
+                <a href="/organisation/{{ row.org_slug }}">{{ row.org_display_name }}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+    </table>
+  </div>
+
+  {{ pagination(page, total_pages, "name", "asc", facet_qs) }}
+{% endblock report_table %}

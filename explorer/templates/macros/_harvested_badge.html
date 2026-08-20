@@ -1,0 +1,8 @@
+{# Harvested/Manual status badge for a dataset row. #}
+{% macro harvested_badge(ds) %}
+  {% if ds.harvested %}
+    <span class="badge badge-harvested"{% if ds.harvest_source_title %} title="Source: {{ ds.harvest_source_title }}"{% endif %}>Harvested</span>
+  {% else %}
+    <span class="badge badge-manual">Manual</span>
+  {% endif %}
+{% endmacro %}

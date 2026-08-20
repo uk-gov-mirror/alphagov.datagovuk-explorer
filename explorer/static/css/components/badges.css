@@ -1,0 +1,96 @@
+/* ---------------------------------------------------------------------------
+ * components/badges.css — status badges, format badges and score badges.
+ * Used on most pages (org/dataset tables, report pages, reviews, dataset
+ * detail). Loaded on every page from _layout.njk.
+ * ------------------------------------------------------------------------- */
+
+.badge {
+	display: inline-block;
+	padding: 0.15rem 0.6rem;
+	border-radius: var(--radius-pill);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	text-transform: capitalize;
+	white-space: nowrap;
+}
+
+.badge-active,
+.badge-approved,
+.badge-harvested {
+	background: var(--color-active-bg);
+	color: var(--color-active);
+}
+
+.badge-manual,
+.badge-deleted,
+.badge-draft,
+.badge-rejected {
+	background: var(--color-resource-bg);
+	color: var(--color-muted);
+}
+
+.badge-pending {
+	background: var(--color-pending-bg);
+	color: var(--color-pending);
+}
+
+.format-badge {
+	display: inline-block;
+	background: var(--color-resource-bg);
+	padding: 0.15rem 0.5rem;
+	border-radius: 4px;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	color: var(--color-muted);
+	white-space: nowrap;
+}
+
+/* LLM suggestion badge — inline with suggested title/description */
+.badge-suggestion {
+	background: #fef3cd;
+	color: #856404;
+}
+
+/* LLM review scores (0–5) — reviews table + dataset detail review card */
+.score-badge {
+	display: inline-block;
+	padding: 0.15rem 0.6rem;
+	border-radius: var(--radius-pill);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	background: var(--color-resource-bg);
+	color: var(--color-text);
+	white-space: nowrap;
+}
+
+.score-4,
+.score-5 {
+	background: var(--color-active-bg);
+	color: var(--color-active);
+}
+
+.score-3 {
+	background: var(--color-pending-bg);
+	color: var(--color-pending);
+}
+
+.score-0,
+.score-1,
+.score-2 {
+	background: #fbe4e1;
+	color: #d4351c;
+}
+
+/* Series type badges — template (info blue) / timeseries (warn amber).
+   Used on series pages and the dataset "Datasets in this series" block.
+   (Moved here from pages/series.css + pages/dataset.css so they load on
+   every page from _layout.njk.) */
+.badge-template {
+	background: #e8f0fe;
+	color: #1a73e8;
+}
+
+.badge-timeseries {
+	background: #fef3e0;
+	color: #e37400;
+}

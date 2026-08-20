@@ -1,0 +1,10 @@
+{# Sortable column header link. Toggles asc/desc and marks the active column.
+   `preserve` is an extra query-string fragment (e.g. "&theme=transport") that
+   keeps any active filters on the resulting URL. #}
+{% macro sort_link(key, label, sort, dir, preserve="") %}
+  {% set next_dir = "desc" if sort == key and dir == "asc" else "asc" %}
+  <a href="?sort={{ key }}&dir={{ next_dir }}{{ preserve }}" class="sort-link{% if sort == key %} active{% endif %}">
+    {{ label }}
+    {% if sort == key %}<span class="sort-indicator">{{ "▼" if dir == "desc" else "▲" }}</span>{% endif %}
+  </a>
+{% endmacro %}

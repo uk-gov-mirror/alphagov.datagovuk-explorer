@@ -1,0 +1,17 @@
+{# Resource name cell: shows the name, falling back to the description when
+   there's no name. When both are present and differ, the description is
+   rendered as a muted second line under the name — outside the link, so it
+   never swallows the anchor's click target. #}
+{% macro resource_name(name, description, url="", fallback="—", title="") -%}
+  {%- set n = (name or "") | trim -%}
+  {%- set d = (description or "") | trim -%}
+  {%- set text = n if n else (d if d else fallback) -%}
+  {%- if url -%}
+    <a href="{{ url }}" target="_blank" rel="noopener noreferrer"{% if title %} title="{{ title }}"{% endif %}>{{ text }}</a>
+  {%- else -%}
+    {{ text }}
+  {%- endif -%}
+  {%- if n and d and n | lower != d | lower -%}
+    <span class="res-desc">{{ d }}</span>
+  {%- endif -%}
+{%- endmacro %}

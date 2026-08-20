@@ -1,0 +1,14 @@
+{% extends "_layout.html" %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/pages/404.css') }}" />
+{% endblock styles %}
+
+{% block content %}
+  <div class="not-found">
+    <h1>404 — Page not found</h1>
+    <p>
+      <a href="/">← Back to home</a>
+    </p>
+  </div>
+{% endblock content %}

@@ -1,0 +1,50 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+  <h1>Metadata fields</h1>
+  <p class="subtitle">
+    How metadata fields and extras are used across {{ total_datasets | num }} datasets
+    in the catalogue — from most-used to least-used.
+  </p>
+
+  {% macro field_table(fields, section, section_label, section_id) %}
+    <section class="chart-section" id="{{ section_id }}">
+      <h2>
+        {{ section_label }} <span class="count-badge">{{ fields | length }}</span>
+      </h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th class="col-num">Used by</th>
+              <th class="col-num">Unique values</th>
+              <th class="col-num">% of catalogue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in fields %}
+              <tr>
+                <td>
+                  <a href="/metadata/{{ section }}/{{ f.label | urlencode }}">{{ f.label }}</a>
+                </td>
+                <td class="col-num">{{ f.count | num }}</td>
+                <td class="col-num">{{ f.distinct | num }}</td>
+                <td class="col-num">
+                  {% if f.count %}
+                    {{ f.pct | round1 }}%
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endmacro %}
+
+  {{ field_table(top_fields, "top", "Top-level fields", "top-fields") }}
+  {{ field_table(extras_fields, "extras", "Extras", "extras-fields") }}
+{% endblock content %}

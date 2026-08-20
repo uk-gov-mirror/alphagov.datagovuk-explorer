@@ -1,0 +1,55 @@
+{# Facet group in the report sidebar (the report_facets block). Renders
+   one <section class="facet-group"> from a facet_group() dict: the ordered
+   facet-link list (with optional proportion bars), an optional
+   "More/Fewer" toggle for long lists (g.more) and optional trailing
+   buckets (g.trailing — e.g. "No URL" on /links, the temporal After/
+   Before/No-year buckets on /datasets). Every variant is driven by
+   optional keys on the dict, so the plain pages (reports/reviews/orgs)
+   and the toggle-able pages (/links, /datasets) share one macro:
+   item.href falls back to facet_url (multi-select orgs pubyear toggles),
+   missing proportions render as a zero-width bar (CSS defaults to 0). #}
+{% macro facet_group(g, facet_url) %}
+  <section class="facet-group" aria-label="{{ g.aria_label }}">
+    <h2 class="facet-heading">{{ g.label }}</h2>
+    <ul class="facet-list{% if g.expanded %} facet-list--expanded{% endif %}"{% if g.list_id %} id="{{ g.list_id }}"{% endif %}>
+      {% for item in g["items"] %}
+        <li {% if item.extra %}class="facet-extra"{% endif %}>
+          <a href="{{ item.href or facet_url(g.key, item.value) }}"
+             class="facet-link{% if item.active %} facet-link--active{% endif %}"
+             style="--facet-prop: {{ (item.proportion or 0) | prop }}">
+            <span class="facet-name">{{ item.name }}</span>
+            <span class="facet-count">{{ item.count | num }}</span>
+          </a>
+        </li>
+      {% endfor %}
+      {% if g.more %}
+        <li class="facet-more">
+          <a href="{{ g.more.href }}"
+             class="facet-more-link facet-toggle"
+             aria-expanded="{{ "true" if g.more.expanded else "false" }}"
+             aria-controls="{{ g.list_id }}"
+             data-param="{{ g.more.param }}"
+             data-value="all"
+             data-more-label="More {{ g.more.label }} ({{ g.more.count | num }})"
+             data-fewer-label="Fewer {{ g.more.label }}">
+            {% if g.more.expanded %}
+              Fewer {{ g.more.label }}
+            {% else %}
+              More {{ g.more.label }} ({{ g.more.count | num }})
+            {% endif %}
+          </a>
+        </li>
+      {% endif %}
+      {% for item in g.trailing or [] %}
+        <li>
+          <a href="{{ item.href or facet_url(g.key, item.value) }}"
+             class="facet-link{% if item.active %} facet-link--active{% endif %}"
+             style="--facet-prop: {{ (item.proportion or 0) | prop }}">
+            <span class="facet-name">{{ item.name }}</span>
+            <span class="facet-count">{{ item.count | num }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endmacro %}

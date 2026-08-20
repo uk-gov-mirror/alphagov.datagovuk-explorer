@@ -1,0 +1,16 @@
+{# Yearly bar chart (orgs created / datasets created per year). The
+   surrounding <section class="chart-section"><h2>… lives in the template
+   (headings differ); this covers only the chart markup. #}
+{% macro bar_chart(yearly, max_yearly) %}
+  <div class="bar-chart">
+    {% for y in yearly %}
+      <div class="bar-col" title="{{ y.label }}: {{ y.count | num }}">
+        <span class="bar-value">{{ y.count | num }}</span>
+        <div class="bar" style="height: {{ ((y.count / max_yearly * 100) | round(2) ) | prop }}%"></div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="bar-labels">
+    {% for y in yearly %}<div class="bar-label">{{ y.year }}</div>{% endfor %}
+  </div>
+{% endmacro %}

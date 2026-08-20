@@ -1,0 +1,71 @@
+{% extends "_report.html" %}
+
+{% block report_header %}
+  <h1>Datasets</h1>
+
+  <p class="count">{{ start_index | num }}-{{ end_index | num }} of {{ shown_datasets | num }}</p>
+
+  {% if theme or source or year or temporal or metadata_key %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% if theme %}
+        {{ filter_pill("Theme", theme_label, facet_url("theme", "") , "Remove theme filter: " ~ theme_label) }}
+      {% endif %}
+      {% if source %}
+        {% set source_name = "Harvested" if source == "harvested" else "Manual" %}
+        {{ filter_pill("Source", source_name, facet_url("source", "") , "Remove source filter: " ~ source_name) }}
+      {% endif %}
+      {% if year %}{{ filter_pill("Year", year, facet_url("year", "") , "Remove year filter: " ~ year) }}{% endif %}
+      {% if temporal %}
+        {{ filter_pill("Temporal", temporal_label, facet_url("temporal", "") , "Remove temporal year filter: " ~ temporal_label) }}
+      {% endif %}
+      {% if metadata_key %}
+        {{ filter_pill("Metadata", metadata_label, facet_url("metadata_key", "") , "Remove metadata filter: " ~ metadata_label) }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}
+    {{ facet_group(g, facet_url) }}
+  {% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("title", "Dataset", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("organisation", "Organisation", sort, dir, facet_qs) }}</th>
+          <th class="col-date">{{ sort_link("metadata_created", "Created", sort, dir, facet_qs) }}</th>
+          <th class="col-date">{{ sort_link("metadata_modified", "Updated", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("resources", "Resources", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("views", "Views", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("harvested", "Harvested", sort, dir, facet_qs) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ds in datasets %}
+          <tr>
+            <th scope="row" class="col-text">
+              <a href="/dataset/{{ ds.org_slug }}/{{ ds.id }}">{{ ds.title }}</a>
+            </th>
+            <td class="col-text">
+              <a href="/organisation/{{ ds.org_slug }}">{{ ds.organisation }}</a>
+            </td>
+            <td class="col-date">{{ ds.metadata_created | date_short }}</td>
+            <td class="col-date">{{ ds.metadata_modified | date_short }}</td>
+            <td class="col-num">{{ ds.resource_count | num }}</td>
+            <td class="col-num">{{ ds.views | num }}</td>
+            <td class="col-text">{{ harvested_badge(ds) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {{ pagination(page, total_pages, sort, dir, facet_qs) }}
+
+  <script defer src="{{ static('links.js') }}"></script>
+{% endblock report_table %}

@@ -1,0 +1,53 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+  {{ breadcrumb('/series', 'All series') }}
+
+  <h1>{{ series.root_title }}</h1>
+
+  <p class="subtitle">
+    {% if series.type == 'template' %}
+      <span class="badge badge-template">Template</span>
+      Published by {{ series.org_count }} organisation
+      {% if series.org_count != 1 %}s{% endif %}
+    {% else %}
+      <span class="badge badge-timeseries">Timeseries</span>
+      {{ series.dataset_count }} dataset
+      {% if series.dataset_count != 1 %}s{% endif %}
+      across {{ series.org_count }} organisation
+      {% if series.org_count != 1 %}s{% endif %}
+    {% endif %}
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th>Dataset</th>
+          {% if series.type == 'timeseries' %}<th>Period</th>{% endif %}
+          <th>Organisation</th>
+          <th class="col-date">Created</th>
+          <th>Theme</th>
+          <th class="col-num">Resources</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ds in datasets %}
+          <tr>
+            <td class="col-text">
+              <a href="/dataset/{{ ds.org_slug }}/{{ ds.dataset_id }}">{{ ds.dataset_title }}</a>
+            </td>
+            {% if series.type == 'timeseries' %}<td>{{ ds.date_suffix or '—' }}</td>{% endif %}
+            <td class="col-text">
+              <a href="/organisation/{{ ds.org_slug }}">{{ ds.org_display_name }}</a>
+            </td>
+            <td class="col-date">{{ ds.metadata_created | date_short if ds.metadata_created else '—' }}</td>
+            <td class="col-text">{{ ds.theme_primary or '—' }}</td>
+            <td class="col-num">{{ ds.resource_count | num }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endblock content %}

@@ -1,0 +1,50 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+  <h1>Series</h1>
+  <p class="subtitle">
+    {{ total | num }} series detected from dataset title patterns.
+    Series are groups of datasets that share a common title root — either
+    published by different organisations (<em>templates</em>) or covering
+    different time periods (<em>timeseries</em>).
+  </p>
+
+  {% if not series %}
+    <p>
+      No series found. Run <code>just build-series</code> first.
+    </p>
+  {% else %}
+    <div class="table-wrap">
+      <table class="data-table data-table--wide-first">
+        <thead>
+          <tr>
+            <th>{{ sort_link("root_title", "Title", sort, dir) }}</th>
+            <th>{{ sort_link("type", "Type", sort, dir) }}</th>
+            <th class="col-num">{{ sort_link("dataset_count", "Datasets", sort, dir) }}</th>
+            <th class="col-num">{{ sort_link("org_count", "Orgs", sort, dir) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in series %}
+            <tr>
+              <td class="col-text">
+                <a href="/series/{{ s.id }}">{{ s.root_title }}</a>
+              </td>
+              <td>
+                {% if s.type == 'template' %}
+                  <span class="badge badge-template">Template</span>
+                {% else %}
+                  <span class="badge badge-timeseries">Timeseries</span>
+                {% endif %}
+              </td>
+              <td class="col-num">{{ s.dataset_count | num }}</td>
+              <td class="col-num">{{ s.org_count | num }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pagination(page, total_pages, sort, dir) }}
+  {% endif %}
+{% endblock content %}

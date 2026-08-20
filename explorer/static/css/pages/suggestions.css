@@ -1,0 +1,40 @@
+/* ---------------------------------------------------------------------------
+ * pages/suggestions.css — the suggestions report page. Loaded via
+ * {% block styles %} in suggestions.html (previously an inline <style>).
+ * ------------------------------------------------------------------------- */
+
+/* LLM-suggested improvements — green/amber confidence tiers */
+.suggestion {
+	color: #2a7d2a;
+}
+.suggestion--low {
+	color: #b85c00;
+}
+.suggestion--med {
+	color: #5a7d2a;
+}
+.suggestion--high {
+	color: #2a6e2a;
+}
+
+/* Tags */
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.tag {
+	display: inline-block;
+	background: var(--color-resource-bg);
+	padding: 0.15rem 0.55rem;
+	border-radius: var(--radius-pill);
+	font-size: var(--text-xs);
+	color: var(--color-muted);
+	white-space: nowrap;
+}
+
+.tag--suggested {
+	background: #d4edda;
+	color: #2a7d2a;
+}

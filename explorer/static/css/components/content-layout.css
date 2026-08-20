@@ -1,0 +1,40 @@
+/* ---------------------------------------------------------------------------
+ * components/content-layout.css — two-column grid layout used by report
+ * pages (organisations, datasets, links, report pages, reviews).
+ *
+ * Row 1 (optional): .layout-header in column 2 for a heading aligned with
+ *   the table.
+ * Row 2: facets sidebar (col 1) + main content (col 2).
+ * ------------------------------------------------------------------------- */
+
+.content-layout {
+	display: grid;
+	/* 1fr would be minmax(auto, 1fr): the table's nowrap cells make its
+     min-content huge, which squashes the facets column. minmax(0, 1fr)
+     lets the table shrink and scroll inside .table-wrap instead. */
+	grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+	gap: 1.5rem;
+	align-items: start;
+}
+
+@media (max-width: 900px) {
+	.content-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Place a block in the second column of a content-layout row (e.g. a page
+   heading that should align with the table edge). */
+.layout-header {
+	grid-column: 2;
+}
+
+/* Single-column variant — when there are no facets (e.g. report pages
+   without an org filter). */
+.content-layout--full {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.content-layout--full .layout-header {
+	grid-column: 1;
+}

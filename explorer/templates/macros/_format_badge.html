@@ -1,0 +1,10 @@
+{# Format badge for a resource/link row. `raw` is the unnormalised format
+   string (shown as a tooltip when it differs); `fallback` is rendered as
+   plain text when no format is recorded. #}
+{% macro format_badge(fmt, raw="", fallback="—") -%}
+  {%- if fmt -%}
+    <span class="format-badge"{% if raw and raw | upper != fmt %} title="{{ raw }}"{% endif %}>{{ fmt }}</span>
+  {%- else -%}
+    {{ fallback }}
+  {%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,24 @@
+{# Pagination controls. Keeps the current sort/dir and any active filters
+   (passed in via `preserve`). The sort/dir defaults handle missing args:
+   suggestions.njk calls pagination(page, total_pages) with no sort/dir,
+   and the undefined defaults render as the literal "undefined" in the
+   base URL (?sort=undefined&dir=undefined). The default parameters are
+   kept deliberately so those URLs stay stable. #}
+{% macro pagination(page, total_pages, sort="undefined", dir="undefined", preserve="") %}
+  {% if total_pages > 1 %}
+    {% set base = "?sort=" + sort + "&dir=" + dir + preserve %}
+    <nav class="pagination" aria-label="Pagination">
+      {% if page > 1 %}<a class="page-link" href="{{ base }}&page={{ page - 1 }}">← Previous</a>{% endif %}
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+          <span class="page-link page-link--active">{{ p }}</span>
+        {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+          <a class="page-link" href="{{ base }}&page={{ p }}">{{ p }}</a>
+        {% elif p == page - 3 or p == page + 3 %}
+          <span class="page-link page-link--ellipsis">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if page < total_pages %}<a class="page-link" href="{{ base }}&page={{ page + 1 }}">Next →</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endmacro %}

@@ -1,0 +1,9 @@
+{# Active-filter pill (links page + report pages): shows which facet
+   filter is applied, with an × to remove it. #}
+{% macro filter_pill(label, value, href, aria_label) %}
+  <a class="filter-pill" href="{{ href }}" aria-label="{{ aria_label }}">
+    <span class="filter-pill-label">{{ label }}</span>
+    <span class="filter-pill-value">{{ value }}</span>
+    <span class="filter-pill-remove" aria-hidden="true">×</span>
+  </a>
+{% endmacro %}

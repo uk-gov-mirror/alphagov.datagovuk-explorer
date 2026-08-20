@@ -1,0 +1,189 @@
+[project]
+name = "datagovuk-explorer"
+version = "1.0.0"
+requires-python = ">=3.13"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "click>=8.1",             # scripts/download_datasets.py raises click.BadParameter directly
+  "django>=6.1",
+  "gunicorn>=23.0",
+  "httpx>=0.28",
+  "jinja2>=3.1",
+  "psycopg[binary]>=3.3.4",
+  "python-dotenv>=1.2.2",
+  "typer>=0.15",
+  "whitenoise>=6.9",
+]
+
+[dependency-groups]
+dev = [
+  "django-stubs[compatible-mypy]>=6.0",
+  "djlint==1.36.4",
+  "markupsafe>=3.0",                    # tests import it directly (esc helper) — no longer transitive-only via jinja2
+  "mypy>=2.3",
+  "pre-commit>=4.6",
+  "pytest>=8.3",
+  "pytest-django>=4.9",
+  "ruff>=0.16.1",
+]
+
+[tool.ruff]
+line-length = 120
+# Exclude a variety of commonly ignored directories.
+extend-exclude = [
+  "*/migrations/*.py",
+  "staticfiles/*",
+]
+lint.select = [
+  "A",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "COM",
+  "DJ",
+  "DTZ",
+  "E",
+  "EM",
+  "ERA",
+  "EXE",
+  "F",
+  "FA",
+  "FBT",
+  "FLY",
+  "G",
+  "I",
+  "ICN",
+  "INP",
+  "INT",
+  "ISC",
+  "N",
+  "PD",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "SLOT",
+  "T10",
+  "T20",
+  "TC",
+  "TID",
+  "TRY",
+  "UP",
+  "W",
+  "YTT",
+]
+lint.ignore = [
+  # TextFields are null=True deliberately: they mirror CKAN JSON where the
+  # key can be absent/null (views defensively write `or ""`). Django's
+  # convention (empty string, not NULL) would break the pipeline contract.
+  "DJ001",
+  "EM101",
+  "EM102",
+  "RET504", # Let the code be self descriptive
+  "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+  "S101",   # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+  # explorer/queries/ is built around raw parameterised SQL (Query class
+  # takes a %s-parameterised statement) — by design, not injection-prone
+  # string concatenation (datagovuk uses the ORM, so it never hits this).
+  "S608",
+  "SIM102", # sometimes it's better to nest
+  # This project is a CLI tool (scripts/) — print() to stdout is the
+  # interface, not a debugging leftover (datagovuk is a web app, so it
+  # never hits this rule).
+  "T201",
+  # Exception messages live at the raise site, not in classes: this is a
+  # CLI, so a clear literal message next to the raise IS the interface
+  # (the classes where the message is part of the API — ReviewError,
+  # OrgNotFoundError, AmbiguousOrgError, InvalidSortError — already carry
+  # their messages and aren't flagged). datagovuk's web app uses custom
+  # exception classes, so it never hits these rules.
+  "TRY003",
+]
+lint.per-file-ignores."explorer/tests/*.py" = [ "PLR2004" ]
+lint.per-file-ignores."scripts/build_db.py" = [ "PLR0911" ]
+# Status codes and pagination sizes in test assertions are intent, not magic.
+# Tests also legitimately unit-test private script helpers (_parse_int, _subscore,
+# _translate, …) — the private members ARE the units under test.
+# Complexity rules (C901 + PLR0911-17) are now on, with only per-file
+# exceptions below — see docs/refactor-functions.md ("Not in scope" and the
+# final-pass disposition) for the reason each file stays partly ignored.
+lint.per-file-ignores."scripts/download_datasets.py" = [ "PLR0913" ]
+lint.per-file-ignores."scripts/embed_only.py" = [ "PLR0913", "PLR0917" ]
+lint.per-file-ignores."scripts/review_suggest.py" = [ "PLR0913" ]
+# The shared facet builder's parameters are its API surface — one option
+# per page behaviour (docs/refactor-plan.md step 1 pins this exact
+# signature) — not a complexity smell.
+lint.per-file-ignores."explorer/facets.py" = [ "PLR0913", "PLR0917" ]
+lint.per-file-ignores."tests/*.py" = [ "PLR2004", "SLF001" ]
+# Fullwidth-digit strings are deliberate fixtures: they prove the date/year
+# regexes use re.ASCII so \d does NOT match U+FF10..U+FF19.
+lint.per-file-ignores."tests/test_build_*.py" = [ "RUF001", "RUF003" ]
+# The long process_batch test stays as-is — test length is not a
+# product-quality signal (see docs/refactor-functions.md).
+lint.per-file-ignores."tests/test_download_datasets.py" = [ "PLR0915", "RUF001", "RUF003" ]
+lint.isort.combine-as-imports = true
+lint.isort.force-single-line = false
+
+[tool.pyproject-fmt]
+keep_full_version = true
+
+# ==== mypy ====
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+plugins = [
+  "mypy_django_plugin.main",
+]
+overrides = [
+  # Django migrations should not produce any errors:
+  { module = "*.migrations.*", ignore_errors = true },
+]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest]
+# pytest — DJANGO_SETTINGS_MODULE wires pytest-django up for the app tests
+# (explorer/tests/test_views.py, explorer/tests/test_queries.py); the
+# pipeline tests in tests/ never import Django. App tests read the *live*
+# dev DB, not a test database — see explorer/tests/conftest.py (the data is
+# loaded by the standalone pipeline, not by migrations, so a pytest-created
+# DB can never hold it). The pipeline tests have their own conftest in tests/.
+ini_options.DJANGO_SETTINGS_MODULE = "config.settings"
+ini_options.testpaths = [ "tests", "explorer/tests" ]
+
+# ==== djLint ====
+[tool.djlint]
+blank_line_after_tag = "load,extends"
+close_void_tags = true
+format_css = false
+format_js = false
+preserve_blank_lines = true
+ignore = "H006,H030,H031,T002,J004,J018,H021"
+include = "H017,H035"
+indent = 2
+profile = "jinja"
+css.indent_size = 2
+js.indent_size = 2
+max_line_length = 120
+max_attribute_length = 120

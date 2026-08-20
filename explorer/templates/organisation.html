@@ -1,0 +1,55 @@
+{% extends "_layout.html" %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/components/chart.css') }}" />
+{% endblock styles %}
+
+{% block header %}
+  {{ breadcrumb('/', 'All organisations') }}
+{% endblock header %}
+
+{% block content %}
+  <h1>{{ org.display_name }}</h1>
+
+  <p class="count">
+    {{ org.dataset_count | num }} dataset
+    {% if org.dataset_count != 1 %}s{% endif %}
+    — {{ org.harvested_count | num }} harvested, {{ (org.dataset_count - org.harvested_count) | num }} manual
+  </p>
+
+  {% if yearly %}
+    <section class="chart-section">
+      <h2>Datasets created per year</h2>
+      {{ bar_chart(yearly, max_yearly) }}
+    </section>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("title", "Title", sort, dir) }}</th>
+          <th class="col-date">{{ sort_link("metadata_created", "Created", sort, dir) }}</th>
+          <th class="col-date">{{ sort_link("metadata_modified", "Updated", sort, dir) }}</th>
+          <th class="col-num">{{ sort_link("resources", "Resources", sort, dir) }}</th>
+          <th class="col-num">{{ sort_link("views", "Views", sort, dir) }}</th>
+          <th class="col-text">{{ sort_link("harvested", "Harvested", sort, dir) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ds in org.datasets %}
+          <tr>
+            <th scope="row" class="col-text">
+              <a href="/dataset/{{ org.slug }}/{{ ds.id }}">{{ ds.title or ds.name }}</a>
+            </th>
+            <td class="col-date">{{ ds.metadata_created | truncate(10, false, "") if ds.metadata_created else "—" }}</td>
+            <td class="col-date">{{ ds.metadata_modified | truncate(10, false, "") if ds.metadata_modified else "—" }}</td>
+            <td class="col-num">{{ ds.resource_count | num }}</td>
+            <td class="col-num">{{ ds.views | num }}</td>
+            <td class="col-text">{{ harvested_badge(ds) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

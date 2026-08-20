@@ -1,0 +1,35 @@
+{% extends "_layout.html" %}
+
+{# Report layout — pages with a header, sidebar facets, and a main table.
+   Override report_header (h1, count, filter pills), report_facets (facet
+   groups), and report_table (table + pagination). #}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/components/pills.css') }}" />
+  <link rel="stylesheet" href="{{ static('css/components/content-layout.css') }}" />
+  <link rel="stylesheet" href="{{ static('css/components/facets.css') }}" />
+{% endblock styles %}
+
+{% block page_header %}
+  <div class="content-layout{% if has_facets is defined and not has_facets %} content-layout--full{% endif %}">
+    <div class="layout-header">
+      {% block report_header %}
+      {% endblock report_header %}
+    </div>
+  </div>
+{% endblock page_header %}
+
+{% block content %}
+  <div class="content-layout{% if has_facets is defined and not has_facets %} content-layout--full{% endif %}">
+    {% if has_facets is not defined or has_facets %}
+      <aside class="facets" aria-label="Filters">
+        {% block report_facets %}
+        {% endblock report_facets %}
+      </aside>
+    {% endif %}
+    <div class="content-main">
+      {% block report_table %}
+      {% endblock report_table %}
+    </div>
+  </div>
+{% endblock content %}

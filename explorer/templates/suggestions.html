@@ -1,0 +1,82 @@
+{% extends "_report.html" %}
+
+{% set has_facets = false %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ static('css/pages/suggestions.css') }}" />
+{% endblock styles %}
+
+{% block report_header %}
+  <h1>Suggestions</h1>
+
+  <p class="count">{{ start_index | num }}-{{ end_index | num }} of {{ total | num }}</p>
+
+  <p class="subtitle">
+    LLM-suggested theme, tags, title and description improvements for
+    {{ total | num }} dataset
+    {% if total != 1 %}s{% endif %}
+    —
+    <a href="https://www.data.gov.uk" target="_blank" rel="noopener">data.gov.uk</a>
+  </p>
+{% endblock report_header %}
+
+{% block report_facets %}
+{% endblock report_facets %}
+
+{% macro tag_list(tags, cls) %}
+  <div class="tags">
+    {% for t in tags %}
+      <span class="tag{% if cls %} {{ cls }}{% endif %}">{{ t }}</span>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("title", "Dataset", sort, dir) }}</th>
+          <th class="col-text">{{ sort_link("org", "Organisation", sort, dir) }}</th>
+          <th class="col-text">{{ sort_link("theme", "Theme", sort, dir) }}</th>
+          <th class="col-text">Tags</th>
+          <th class="col-num">{{ sort_link("confidence", "Confidence", sort, dir) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suggestions %}
+          <tr>
+            <th scope="row" class="col-text">
+              <a href="/dataset/{{ s.org_slug }}/{{ s.dataset_id }}">{{ s.title }}</a>
+              {% if s.suggested_title and s.suggested_title != s.title %}
+                <br />
+                <span class="suggestion">→ {{ s.suggested_title }}</span>
+              {% endif %}
+            </th>
+            <td class="col-text">
+              <a href="/organisation/{{ s.org_slug }}">{{ s.org_display_name }}</a>
+            </td>
+            <td class="col-text">
+              {{ s.current_theme or "—" }}
+              {% if s.theme_changed and s.theme %}
+                <br />
+                <span class="suggestion">→ {{ s.theme }}</span>
+              {% endif %}
+            </td>
+            <td class="col-text">
+              {% if s.current_tags %}{{ tag_list(s.current_tags.split(" ") , "") }}{% endif %}
+              {% if s.tags and s.tags | length %}{{ tag_list(s.tags, "tag--suggested") }}{% endif %}
+              {% if not s.current_tags and not (s.tags and s.tags | length) %}—{% endif %}
+            </td>
+            <td class="col-num">
+              <span class="suggestion--{{ s.theme_confidence }}">{{ s.theme_confidence }}</span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}<div class="table-nav-bottom">{{ pagination(page, total_pages) }}</div>{% endif %}
+{% endblock report_table %}

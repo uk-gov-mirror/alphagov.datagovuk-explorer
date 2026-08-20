@@ -1,0 +1,91 @@
+/* ---------------------------------------------------------------------------
+ * pages/report.css — the report pages (/report/:key): the description, and
+ * the fixed-width link/dataset tables. The dashboard summary cards (home)
+ * live in pages/dashboard.css. Loaded via {% block styles %} in
+ * report.html.
+ * ------------------------------------------------------------------------- */
+
+.report-description {
+	color: var(--color-muted);
+	font-size: var(--text-sm);
+	margin-top: 0;
+}
+
+/* ---- Report link tables — fixed layout with explicit column widths so long
+   URLs can't stretch their column (auto layout sizes columns from content
+   width even when the text wraps). ---- */
+
+.data-table--report {
+	table-layout: fixed;
+}
+
+.data-table--report .col-name {
+	width: 34%;
+}
+.data-table--report .col-url {
+	width: 27%;
+}
+.data-table--report .col-format {
+	width: 9%;
+}
+.data-table--report .col-dataset {
+	width: 17%;
+}
+.data-table--report .col-org {
+	width: 13%;
+}
+
+/* URL cell — break anywhere so the fixed-width column is never overflowed */
+.data-table--report td.url-cell {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+/* ---- API resources column (datasets-has-api report) — fixed-width
+   dataset table, with a wider matched-resources column. ---- */
+
+.data-table--report .col-api-dataset {
+	width: 25%;
+}
+.data-table--report .col-api-org {
+	width: 14%;
+}
+.data-table--report .col-api-date {
+	width: 9%;
+}
+.data-table--report .col-api-views {
+	width: 6%;
+}
+.data-table--report .col-api-resources {
+	width: 37%;
+}
+
+.api-resources-cell {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.api-resources {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.api-resource {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4rem;
+	font-size: var(--text-sm);
+}
+
+.api-resource a {
+	color: var(--color-accent);
+	text-decoration: none;
+}
+
+.api-resource a:hover {
+	text-decoration: underline;
+}

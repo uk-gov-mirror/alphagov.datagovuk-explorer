@@ -1,0 +1,13 @@
+/* ---------------------------------------------------------------------------
+ * pages/404.css — the not-found page. Loaded via {% block styles %} in 404.njk.
+ * The 404 title is an h1 — sized by the base type scale in base.css.
+ * ------------------------------------------------------------------------- */
+
+.not-found {
+	text-align: center;
+	padding: 4rem 0;
+}
+
+.not-found a {
+	color: var(--color-accent);
+}

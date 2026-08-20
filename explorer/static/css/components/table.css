@@ -1,0 +1,180 @@
+/* ---------------------------------------------------------------------------
+ * components/table.css — the shared table component.
+ * Used by every content page (organisations, datasets, links, report pages,
+ * reviews, dataset detail). Loaded on every page from _layout.njk.
+ *
+ * Column typing — every column carries a type class, applied to BOTH the
+ * header <th> and every body cell of that column:
+ *   .col-text  — text: wraps at word boundaries (falling back to
+ *                mid-word breaks for long strings), capped at 400px
+ *   .col-num   — numbers: no wrap, right-aligned, tabular figures
+ *   .col-date  — dates: no wrap, muted, slightly smaller (body cells only;
+ *                the header keeps the shared .data-table th label style)
+ * Badges and format chips have their own nowrap (components/badges.css);
+ * long single-value cells that need truncation/breaking are handled by
+ * dedicated classes (e.g. .host-cell, .url-cell).
+ *
+ * Variants:
+ *   .data-table--wide-first  wider first column for name/title tables
+ *   .data-table--report  fixed layout + explicit column widths
+ *                            (defined in pages/report.css)
+ *
+ * Sticky header: the page itself must be the scroll container, so do not
+ * add overflow-x/auto/scroll to .table-wrap — any overflow value makes the
+ * wrapper the nearest scroll container and position: sticky sticks within
+ * it, which never scrolls vertically, so the header never sticks.
+ * ------------------------------------------------------------------------- */
+
+.table-wrap {
+	background: var(--color-surface);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	/* No overflow here on purpose — see the sticky-header note above. */
+}
+
+.data-table {
+	width: 100%;
+	/* separate (not collapse) so the sticky header cells keep their
+	   background/borders painted above the rows scrolling underneath */
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: var(--text-body);
+}
+
+.data-table th {
+	text-align: left;
+	vertical-align: top;
+	padding: 0.75rem 1rem;
+	background: var(--color-resource-bg);
+	border-bottom: 1px solid var(--color-border);
+	white-space: nowrap;
+}
+
+/* Wide first column — only for tables whose first column holds names/titles
+   (org list and dataset list). Resources table uses the default narrow width.
+   Kept above the thead th rules so selector specificity stays non-descending. */
+.data-table--wide-first td:first-child,
+.data-table--wide-first th:first-child {
+	min-width: 260px;
+}
+
+/* Sticky header — sticks to the top of the viewport while the page
+   scrolls. The th's own background stays with it and covers rows scrolling
+   underneath. The rounded top corners mirror .table-wrap's radius now that
+   the wrapper no longer clips the table. */
+.data-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.data-table thead th:first-child {
+	border-top-left-radius: var(--radius);
+}
+
+.data-table thead th:last-child {
+	border-top-right-radius: var(--radius);
+}
+
+.data-table td {
+	padding: 0.6rem 1rem;
+	vertical-align: top;
+	border-bottom: 1px solid var(--color-border);
+	/* text cells wrap by default — the 400px cap lives on .col-text */
+	white-space: normal;
+}
+
+/* Row headers (th scope="row" in tbody) should look like body cells,
+   not like the uppercase column headers above — but they are bold, and
+   being text they wrap like body cells. */
+.data-table tbody th {
+	padding: 0.6rem 1rem;
+	vertical-align: top;
+	border-bottom: 1px solid var(--color-border);
+	font-size: inherit;
+	font-weight: 600;
+	text-transform: none;
+	letter-spacing: normal;
+	color: inherit;
+	text-align: left;
+	background: none;
+	white-space: normal;
+}
+
+/* ---- Column types ---------------------------------------------------------
+   Apply the same class to the header th and every body cell of a column. */
+
+.data-table .col-num {
+	white-space: nowrap;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Date cells — smaller size and muted colour for body cells only. Scoped
+   to td so the header <th class="col-date"> does not pick up the larger
+   body size and stays on the shared label style (base.css). */
+.data-table td.col-date {
+	white-space: nowrap;
+	color: var(--color-muted);
+	font-size: var(--text-sm);
+}
+
+.data-table .col-text {
+	/* text columns — wrap at word boundaries within a 400px cap so long
+	   titles/names can't stretch the table; overflow-wrap: break-word
+	   falls back to breaking inside long strings (URLs, slugs) that
+	   would otherwise overflow the cap */
+	max-width: 400px;
+	overflow-wrap: break-word;
+	word-break: break-word; /* legacy alias, same behaviour */
+}
+
+.data-table tr:last-child :is(td, th) {
+	border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+	background: var(--color-resource-bg);
+}
+
+/* Highlight the Updated date when it differs from Created.
+   (Defined after .col-date so it wins on the same specificity.) */
+.data-table .updated-diff {
+	font-weight: 700;
+	color: var(--color-text);
+}
+
+.data-table a {
+	color: var(--color-accent);
+	text-decoration: none;
+}
+
+.data-table a:hover {
+	text-decoration: underline;
+}
+
+.sort-indicator {
+	font-size: var(--text-xs);
+	margin-left: 0.25rem;
+}
+
+/* Cap the host column (links report) — some hosts come from malformed URLs
+   (e.g. "http://Table 1 …", or HTML fragments), and an uncapped nowrap
+   cell makes the whole table far too wide. Full host is in the title. */
+.data-table td.host-cell {
+	max-width: 280px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Resource name cell — the description as a muted second line under the
+   name, when both are present and differ (report pages + dataset pages). */
+.data-table .res-desc {
+	display: block;
+	margin-top: 2px;
+	color: var(--color-muted);
+	font-size: var(--text-sm);
+	font-weight: 400;
+	line-height: 1.35;
+}

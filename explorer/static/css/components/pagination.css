@@ -1,0 +1,59 @@
+/* ---------------------------------------------------------------------------
+ * components/pagination.css — result counts + pager.
+ * Used on datasets, links, report pages and reviews.
+ * Loaded on every page from _layout.njk (small, avoids per-page bookkeeping).
+ * ------------------------------------------------------------------------- */
+
+.page-info {
+	color: var(--color-muted);
+}
+
+.pagination {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+	margin: 1.25rem 0 2rem;
+}
+
+.page-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25rem;
+	padding: 0.35rem 0.7rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-surface);
+	color: var(--color-text);
+	font-size: var(--text-sm);
+	text-decoration: none;
+	transition:
+		border-color var(--transition),
+		color var(--transition),
+		background var(--transition);
+}
+
+a.page-link:hover {
+	border-color: var(--color-accent);
+	color: var(--color-accent);
+}
+
+.page-link--active {
+	background: var(--color-accent);
+	border-color: var(--color-accent);
+	color: var(--color-on-accent);
+}
+
+.page-link--active:hover {
+	background: var(--color-accent-hover);
+	border-color: var(--color-accent-hover);
+	color: var(--color-on-accent);
+}
+
+.page-link--ellipsis {
+	border: none;
+	background: none;
+	min-width: auto;
+	padding: 0.35rem 0.2rem;
+}
