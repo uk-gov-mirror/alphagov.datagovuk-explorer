@@ -34,7 +34,8 @@ Requires Python 3.13, `uv`, and a local PostgreSQL server.
 ```bash
 just setup                    # uv sync --dev
 cp .env.example .env          # then set DATABASE_URL (and secrets)
-just fetch-organisations      # organisations.json from the CKAN API
+just fetch-organisations      # downloads/organisations.json from the CKAN API
+just fetch-harvest-sources   # downloads/harvest_sources.json (walks orgs, per-org filter)
 just download-datasets        # dataset JSON under downloads/ (gitignored)
 just build-db --skip-embeddings   # populate the database (offline build)
 just dev                      # runserver on :3000

@@ -23,6 +23,17 @@ SORT_COLUMNS = [
     "last_published",
 ]
 
+# Sortable columns for the harvest sources table on the /harvesters page
+HARVESTER_SORT_COLUMNS = [
+    "title",
+    "org_name",
+    "type",
+    "active",
+    "frequency",
+    "dataset_count",
+    "last_run",
+]
+
 # Sortable columns for the dataset table on the organisation page
 DATASET_SORT_COLUMNS = [
     "title",
@@ -79,6 +90,18 @@ def _text_key(row: dict[str, Any], key: str, fallback: str | None = None) -> tup
     if value is None and fallback is not None:
         value = row.get(fallback)
     return _natural_key(value or "")
+
+
+def sort_harvesters(rows: list[dict[str, Any]], sort: str, dir_: str) -> None:
+    """Sort harvest source rows in place by column key and direction (asc|desc)."""
+    reverse = dir_ == "desc"
+    if sort == "dataset_count":
+        rows.sort(key=lambda r: _num_key(r, sort), reverse=reverse)
+    elif sort == "active":
+        # False sorts before True (False < True alphabetically)
+        rows.sort(key=lambda r: str(bool(r.get("active"))), reverse=reverse)
+    else:
+        rows.sort(key=lambda r: _text_key(r, sort), reverse=reverse)
 
 
 def sort_orgs(rows: list[dict[str, Any]], sort: str, dir_: str) -> None:

@@ -202,7 +202,8 @@ def test_cli():
             {"name": "ons", "display_name": "ONS", "package_count": 2000},
             {"name": "empty", "display_name": "Empty Org"},
         ]
-        Path(d, "organisations.json").write_text(json.dumps(orgs), encoding="utf-8")
+        Path(d, "downloads").mkdir(exist_ok=True)
+        Path(d, "downloads", "organisations.json").write_text(json.dumps(orgs), encoding="utf-8")
         with chdir(d):
             res = runner.invoke(qd.app, ["--list"])
         assert res.exit_code == 0, res.output
@@ -233,7 +234,8 @@ def test_cli():
             {"name": "test-a", "display_name": "Alpha"},
             {"name": "test-b", "display_name": "Beta"},
         ]
-        Path(d, "organisations.json").write_text(json.dumps(orgs), encoding="utf-8")
+        Path(d, "downloads").mkdir(exist_ok=True)
+        Path(d, "downloads", "organisations.json").write_text(json.dumps(orgs), encoding="utf-8")
         with chdir(d):
             res = runner.invoke(qd.app, ["test"])
         assert res.exit_code == 1, res.output

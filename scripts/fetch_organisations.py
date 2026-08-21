@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Fetch and display all organisations/publishers from data.gov.uk (CKAN API).
 
-Prints a summary to stdout, writes the full data to organisations.json
-(relative to the current directory).
+Prints a summary to stdout, writes the full data to
+downloads/organisations.json (the gitignored API cache, alongside the
+dataset files).
 
 Rate limit: 4 requests per second (scripts/rate_limit.py).
 """
@@ -18,6 +19,8 @@ from scripts.rate_limit import create_rate_limiter
 BASE_URL = "https://www.data.gov.uk/api/3/action"
 MAX_RPS = 4
 PAGE_SIZE = 25
+
+DOWNLOADS_DIR = Path(__file__).resolve().parent.parent / "downloads"
 
 
 def get_organisations(client: httpx.Client) -> list[dict]:
@@ -68,7 +71,8 @@ def main() -> None:
         with httpx.Client(follow_redirects=True, timeout=30) as client:
             orgs = get_organisations(client)
 
-        out_path = "organisations.json"
+        out_path = DOWNLOADS_DIR / "organisations.json"
+        DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
         write_json(orgs, out_path)
         print(f"Wrote {len(orgs)} organisations to {out_path}\n")
 

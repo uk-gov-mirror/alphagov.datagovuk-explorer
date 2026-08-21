@@ -110,9 +110,15 @@ deploy-check:
       -u "{{env_var_or_default('BASIC_AUTH_USER', 'datagovuk')}}:{{env_var_or_default('BASIC_AUTH_PASS', '')}}" \
       "https://datagovuk-explorer-production.up.railway.app/health"
 
-# Fetch organisations from CKAN API
+# Fetch organisations from CKAN API. Writes downloads/organisations.json,
+# which build-db loads.
 fetch-organisations:
     uv run python -m scripts.fetch_organisations
+
+# Fetch all harvest sources from CKAN API (walks orgs, per-org filter).
+# Writes downloads/harvest_sources.json, which build-db loads.
+fetch-harvest-sources:
+    uv run python -m scripts.fetch_harvest_sources
 
 # Audit for unused CSS with PurgeCSS (read-only: lists selectors that
 # appear in no template/JS, never rewrites files). Requires Node/npx —

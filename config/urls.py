@@ -37,6 +37,8 @@ urlpatterns += [
 # --- organisations, links (facet pages) ---------------------------
 urlpatterns += [
     path("organisations", views.organisations, name="organisations"),
+    path("harvesters", views.harvesters, name="harvesters"),
+    path("harvester/<str:source_id>", views.harvester, name="harvester"),
     path("links", views.links, name="links"),
 ]
 

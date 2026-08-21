@@ -45,9 +45,9 @@ app = typer.Typer(add_completion=False)
 BASE_URL = "https://www.data.gov.uk/api/3/action"
 MAX_RPS = 4
 
-# organisations.json lives in the current directory (fetch_organisations.py
-# writes it there too).
-ORGS_JSON = "organisations.json"
+# Deliberately CWD-relative (not __file__-relative): lets the CLI tests
+# chdir into a tmp downloads/.
+ORGS_JSON = Path("downloads") / "organisations.json"
 
 VALID_SORT_FIELDS = [
     "score",

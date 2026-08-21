@@ -235,6 +235,126 @@ def test_organisation_detail(client):
 
 
 # ---------------------------------------------------------------------------
+# /harvesters
+# ---------------------------------------------------------------------------
+def test_harvesters(client):
+    from explorer.queries.harvesters import harvest_source_rows  # noqa: PLC0415
+    from explorer.sort import sort_harvesters  # noqa: PLC0415
+
+    rows = harvest_source_rows()
+    assert rows
+    total = len(rows)
+    r = client.get("/harvesters")
+    html = r.content.decode()
+    assert r.status_code == 200
+    assert f"1-{total:,} of {total:,}" in html
+
+    # default sort: dataset_count desc — most datasets first
+    sorted_default = list(rows)
+    sort_harvesters(sorted_default, "dataset_count", "desc")
+    assert esc(sorted_default[0]["title"]) in html
+
+    # sort combo
+    r2 = client.get("/harvesters?sort=dataset_count&dir=desc")
+    assert r2.status_code == 200
+    sorted_ds = list(rows)
+    sort_harvesters(sorted_ds, "dataset_count", "desc")
+    assert esc(sorted_ds[0]["title"]) in r2.content.decode()
+
+    # invalid sort falls back to the default column; bogus dir becomes asc
+    r3 = client.get("/harvesters?sort=bogus&dir=bogus")
+    assert r3.status_code == 200
+    sorted_fallback = list(rows)
+    sort_harvesters(sorted_fallback, "dataset_count", "asc")
+    assert esc(sorted_fallback[0]["title"]) in r3.content.decode()
+
+    # one facet combo: the most common harvest type
+    from collections import Counter  # noqa: PLC0415
+
+    type_counts = Counter(r["type"] for r in rows)
+    top_type, _ = type_counts.most_common(1)[0]
+    n_type = sum(1 for r in rows if r["type"] == top_type)
+    r4 = client.get(f"/harvesters?type={top_type}")
+    h4 = r4.content.decode()
+    assert r4.status_code == 200
+    assert f"1-{n_type:,} of {total:,}" in h4
+
+    # ?active=false renders the Inactive pill + badge
+    n_inactive = sum(1 for r in rows if not r["active"])
+    r5 = client.get("/harvesters?active=false")
+    h5 = r5.content.decode()
+    assert r5.status_code == 200
+    assert f"1-{n_inactive:,} of {total:,}" in h5
+    assert 'class="filter-pill"' in h5
+    assert "Inactive" in h5
+
+    # ?datasets=0 renders the zero-datasets bucket (pill + count)
+    from explorer.queries.organisations import DATASET_BUCKET_TESTS  # noqa: PLC0415
+
+    n_zero = sum(1 for r in rows if DATASET_BUCKET_TESTS["0"](r["dataset_count"]))
+    r6 = client.get("/harvesters?datasets=0")
+    h6 = r6.content.decode()
+    assert r6.status_code == 200
+    assert f"1-{n_zero:,} of {total:,}" in h6
+    assert 'class="filter-pill"' in h6
+
+    # ?datasets=bogus falls back to the unfiltered list
+    r7 = client.get("/harvesters?datasets=bogus")
+    assert r7.status_code == 200
+    assert f"1-{total:,} of {total:,}" in r7.content.decode()
+
+    # Last run column replaces Created: sortable, renders a date or an
+    # em-dash for sources that never ran
+    assert "Last run" in html
+    assert "Created" not in html
+    assert "?sort=last_run&dir=asc" in html
+
+
+# The headline "datasets harvested" matches the /datasets SOURCE facet's
+# Harvested count — both count datasets.harvested = 1 (the per-source table
+# column is attribution by id, not the headline).
+def test_harvesters_total_matches_datasets_facet(client):
+    r = client.get("/harvesters")
+    html = r.content.decode()
+    datasets_html = client.get("/datasets").content.decode()
+    m = re.search(
+        r'<span class="facet-name">Harvested</span>\s*'
+        r'<span class="facet-count">([\d,]+)</span>',
+        datasets_html,
+    )
+    assert m, "datasets SOURCE facet should show a Harvested count"
+    assert f"— {m.group(1)} datasets harvested" in html
+
+
+# ---------------------------------------------------------------------------
+# /harvester/{id} (detail page)
+# ---------------------------------------------------------------------------
+def test_harvester_detail(client):
+    from explorer.queries.harvesters import harvest_source_rows  # noqa: PLC0415
+
+    rows = harvest_source_rows()
+    with_datasets = [r for r in rows if r["dataset_count"] > 0]
+    assert with_datasets
+    source = with_datasets[0]
+
+    r = client.get(f"/harvester/{source['id']}")
+    h = r.content.decode()
+    assert r.status_code == 200
+    assert source["title"] in h
+    # breadcrumb back to the list + a dataset row linking to its detail
+    assert "/harvesters" in h
+    assert "/dataset/" in h
+
+    # the record block shows the fields the list page can't fit
+    assert "Last run" in h
+    assert "Jobs" in h
+
+    # unknown id → 404
+    r404 = client.get("/harvester/does-not-exist")
+    assert r404.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # /links (facet page)
 # ---------------------------------------------------------------------------
 def test_links(client):

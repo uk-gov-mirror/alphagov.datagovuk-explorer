@@ -1,0 +1,73 @@
+{% extends "_report.html" %}
+
+{% block report_header %}
+  <h1>Harvesters</h1>
+
+  <p class="count">
+    1-{{ shown | num }} of {{ total | num }} sources
+    — {{ total_datasets | num }} datasets harvested
+  </p>
+
+  {% if linked_datasets != total_datasets %}
+    <p class="count-note">
+      {{ linked_datasets | num }} are attributed to the sources below;
+      the rest were harvested by sources no longer in the registry.
+    </p>
+  {% endif %}
+
+  {% if type or active or frequency or datasets %}
+    <div class="filter-pills" aria-label="Active filters">
+      {% if type %}
+        {{ filter_pill("Type", type_label, facet_url("type", "") , "Remove type filter: " ~ type_label) }}
+      {% endif %}
+      {% if active %}
+        {{ filter_pill("Status", active_label, facet_url("active", "") , "Remove status filter: " ~ active_label) }}
+      {% endif %}
+      {% if frequency %}
+        {{ filter_pill("Frequency", frequency_label, facet_url("frequency", "") , "Remove frequency filter: " ~ frequency_label) }}
+      {% endif %}
+      {% if datasets %}
+        {{ filter_pill("Datasets", datasets_label, facet_url("datasets", "") , "Remove datasets filter: " ~ datasets_label) }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock report_header %}
+
+{% block report_facets %}
+  {% for g in facet_groups %}{{ facet_group(g, facet_url) }}{% endfor %}
+{% endblock report_facets %}
+
+{% block report_table %}
+  <div class="table-wrap">
+    <table class="data-table data-table--wide-first">
+      <thead>
+        <tr>
+          <th class="col-text">{{ sort_link("title", "Source", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("org_name", "Organisation", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("type", "Type", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("active", "Status", sort, dir, facet_qs) }}</th>
+          <th class="col-text">{{ sort_link("frequency", "Frequency", sort, dir, facet_qs) }}</th>
+          <th class="col-num">{{ sort_link("dataset_count", "Datasets", sort, dir, facet_qs) }}</th>
+          <th class="col-date">{{ sort_link("last_run", "Last run", sort, dir, facet_qs) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sources %}
+          <tr>
+            <th scope="row" class="col-text">
+              <a href="/harvester/{{ s.id }}">{{ s.title or s.id }}</a>
+            </th>
+            <td class="col-text">{{ s.org_name }}</td>
+            <td class="col-text">{{ s.type_label }}</td>
+            <td class="col-text">
+              <span class="badge badge-{{ "active" if s.active else "manual" }}">{{ s.active_label }}</span>
+            </td>
+            <td class="col-text">{{ s.frequency_label }}</td>
+            <td class="col-num">{{ s.dataset_count | num }}</td>
+            <td class="col-date">{{ s.last_run }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock report_table %}

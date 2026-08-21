@@ -1,0 +1,96 @@
+{% extends "_layout.html" %}
+
+{% macro detail(name, value, cls) %}
+  {% if value %}
+    <dt>{{ name }}</dt>
+    <dd {% if cls %}class="{{ cls }}"{% endif %}>
+      {{ value }}
+    </dd>
+  {% endif %}
+{% endmacro %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ static('css/pages/dataset.css') }}" />
+{% endblock styles %}
+
+{% block header %}
+  {{ breadcrumb('/harvesters', 'All harvesters') }}
+{% endblock header %}
+
+{% block content %}
+  <article class="dataset-detail">
+    <h1>{{ source.title or source.id }}</h1>
+
+    <p class="count">
+      {{ source.dataset_count | num }} dataset
+      {% if source.dataset_count != 1 %}s{% endif %}
+      harvested by this source
+    </p>
+
+    {% if source.description %}
+      <section class="section">
+        <div class="notes-content">{{ source.description }}</div>
+      </section>
+    {% endif %}
+
+    <section class="section">
+      <h3>Harvest source</h3>
+      <dl class="detail-list">
+        {% if source.url %}
+          <dt>URL</dt>
+          <dd>
+            <a href="{{ source.url }}" target="_blank" rel="noopener">{{ source.url }}</a>
+          </dd>
+        {% endif %}
+        {% if source.org_name %}
+          <dt>Organisation</dt>
+          <dd>
+            <a href="/organisation/{{ source.org_slug }}">{{ source.org_name }}</a>
+          </dd>
+        {% endif %}
+        {{ detail("Publisher", source.publisher) }}
+        {{ detail("Type", source.type_label) }}
+        {{ detail("Status", source.active_label) }}
+        {{ detail("Frequency", source.frequency_label) }}
+        {{ detail("Created", source.created) }}
+        {{ detail("Last run", source.last_run) }}
+        {{ detail("Next run", source.next_run) }}
+        {{ detail("Jobs", source.job_count | num if source.job_count is not none else "") }}
+      </dl>
+    </section>
+
+    <section class="section">
+      <h3>Datasets ({{ source.dataset_count | num }})</h3>
+      <div class="table-wrap">
+        <table class="data-table data-table--wide-first">
+          <thead>
+            <tr>
+              <th class="col-text">{{ sort_link("title", "Title", sort, dir) }}</th>
+              <th class="col-date">{{ sort_link("metadata_created", "Created", sort, dir) }}</th>
+              <th class="col-date">{{ sort_link("metadata_modified", "Updated", sort, dir) }}</th>
+              <th class="col-num">{{ sort_link("resources", "Resources", sort, dir) }}</th>
+              <th class="col-num">{{ sort_link("views", "Views", sort, dir) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ds in source.datasets %}
+              <tr>
+                <th scope="row" class="col-text">
+                  <a href="/dataset/{{ ds.org_slug }}/{{ ds.id }}">{{ ds.title or ds.name }}</a>
+                </th>
+                <td class="col-date">{{ ds.metadata_created | truncate(10, false, "") if ds.metadata_created else "—" }}</td>
+                <td class="col-date">{{ ds.metadata_modified | truncate(10, false, "") if ds.metadata_modified else "—" }}</td>
+                <td class="col-num">{{ ds.resource_count | num }}</td>
+                <td class="col-num">{{ ds.views | num }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5">No datasets recorded for this source.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </article>
+{% endblock content %}

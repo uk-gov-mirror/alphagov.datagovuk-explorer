@@ -392,6 +392,17 @@ DATASETS_BY_ORG = Query(
 # Dataset count for one org
 DATASET_COUNT = Query("SELECT COUNT(*) AS count FROM datasets WHERE org_slug = %s")
 
+# Narrow rows for one harvest source's page (joined by harvest_source_id,
+# the datasets↔sources key promoted from the dataset's harvest_source_id
+# extra — the same join the /harvesters list uses; titles aren't unique
+# across sources, so title joins overcount). All of these datasets are
+# harvested by definition, so no harvested column: the source page shows
+# Title/Created/Updated/Resources/Views.
+DATASETS_BY_SOURCE = Query(
+    """SELECT id, org_slug, title, name, metadata_created, metadata_modified, resource_count, views
+       FROM datasets WHERE harvest_source_id = %s""",
+)
+
 # Full dataset JSON for the detail page
 DATASET_JSON = Query("SELECT json FROM dataset_json WHERE id = %s")
 

@@ -34,12 +34,13 @@
     <header class="site-header">
       <div class="header-inner">
         <a href="/" class="site-title">
-            <img src="{{ static('images/logo-ndl.svg') }}" alt="Home">
+          <img src="{{ static('images/logo-ndl.svg') }}" alt="Home" />
           <span class="wordmark-sub">Explorer</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
           {{ nav_link('/', 'Home', 'dashboard') }}
           {{ nav_link('/organisations', 'Organisations', 'orgs') }}
+          {{ nav_link('/harvesters', 'Harvesters', 'harvesters') }}
           {{ nav_link('/datasets', 'Datasets', 'datasets') }}
           {{ nav_link('/links', 'Links', 'links') }}
           {{ nav_link('/metadata', 'Metadata', 'metadata') }}

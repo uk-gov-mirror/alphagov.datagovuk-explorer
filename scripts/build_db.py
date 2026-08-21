@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Build (or rebuild) the PostgreSQL database from the cached JSON on disk.
 
-Reads organisations.json and every dataset file under downloads/, then
-writes everything into the database. The server can then answer page
+Reads organisations.json, downloads/harvest_sources.json and every
+dataset file under downloads/, then writes everything into the database.
+The server can then answer page
 requests with fast indexed queries instead of reading and parsing 50k+
 JSON files on every request.
 
@@ -51,7 +52,8 @@ MAX_FIELD_VALUE_LENGTH = 500
 VIEWS_CSV_COLUMNS = 3
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "downloads"
-ORGS_FILE = Path(__file__).resolve().parent.parent / "organisations.json"
+ORGS_FILE = DATA_DIR / "organisations.json"
+HARVEST_SOURCES_FILE = DATA_DIR / "harvest_sources.json"
 VIEWS_FILE = Path(__file__).resolve().parent.parent / "data" / "directory-views-year.csv"
 DATABASE_URL = database_url()
 
@@ -605,12 +607,13 @@ def resolve_date_pattern_views(patterns: dict, all_ids: list, title_ids: dict) -
 
 # ---------------------------------------------------------------------------
 # Wipe — schema is owned by Django migrations; the build only truncates
-# the 8 tables it populates (series tables excluded).
+# the 9 tables it populates (series tables excluded).
 # ---------------------------------------------------------------------------
 
 TRUNCATE_SQL = (
     "TRUNCATE TABLE embedding_map, dataset_embeddings, metadata_values, "
-    "metadata_keys, links, dataset_json, datasets, organisations CASCADE"
+    "metadata_keys, links, dataset_json, datasets, organisations, "
+    "harvest_sources CASCADE"
 )
 
 
@@ -628,8 +631,8 @@ INSERT INTO datasets
      metadata_modified, resource_count, theme_primary,
      temporal_coverage_from, temporal_coverage_to, temporal_granularity,
      temporal_periods,
-     harvested, harvest_source_title)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     harvested, harvest_source_title, harvest_source_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET
     org_slug = EXCLUDED.org_slug, org_display_name = EXCLUDED.org_display_name,
     title = EXCLUDED.title, name = EXCLUDED.name, notes = EXCLUDED.notes,
@@ -642,7 +645,8 @@ ON CONFLICT (id) DO UPDATE SET
     temporal_granularity = EXCLUDED.temporal_granularity,
     temporal_periods = EXCLUDED.temporal_periods,
     harvested = EXCLUDED.harvested,
-    harvest_source_title = EXCLUDED.harvest_source_title
+    harvest_source_title = EXCLUDED.harvest_source_title,
+    harvest_source_id = EXCLUDED.harvest_source_id
 """
 
 INSERT_JSON_SQL = """
@@ -693,7 +697,7 @@ def _extras(ds: dict) -> dict:
 
 
 def _dataset_row(ds: dict, extras: dict, org_name, org_display) -> tuple:
-    """The 16 VALUES for insert_ds, derived from one dataset dict."""
+    """The 17 VALUES for insert_ds, derived from one dataset dict."""
     from_val = temporal_val(ds.get("temporal_coverage-from"))
     to_val = temporal_val(ds.get("temporal_coverage-to"))
     return (
@@ -713,6 +717,7 @@ def _dataset_row(ds: dict, extras: dict, org_name, org_display) -> tuple:
         temporal_periods(from_val, to_val),
         1 if extras.get("harvest_object_id") else 0,
         extras.get("harvest_source_title") or None,
+        extras.get("harvest_source_id") or None,
     )
 
 
@@ -852,8 +857,8 @@ def _process_batch(db, batch: list[dict], st: _BuildState) -> None:
 
 
 def _load_orgs() -> list:
-    """Read organisations.json — the friendly CLI errors on failure are the
-    interface (fetch-organisations regenerates the file)."""
+    """Read downloads/organisations.json — the friendly CLI errors on
+    failure are the interface (fetch-organisations regenerates the file)."""
     print("Reading organisations.json...", file=sys.stderr)
     try:
         return json.loads(ORGS_FILE.read_text(encoding="utf-8"))
@@ -861,6 +866,21 @@ def _load_orgs() -> list:
         print(f"Could not read {ORGS_FILE}: {err}", file=sys.stderr)
         print(
             "Run `just fetch-organisations` first (regenerates it from the CKAN API).",
+            file=sys.stderr,
+        )
+        raise typer.Exit(1) from None
+
+
+def _load_harvest_sources() -> list:
+    """Read downloads/harvest_sources.json — the friendly CLI errors on
+    failure are the interface (fetch-harvest-sources regenerates the file)."""
+    print("Reading harvest_sources.json...", file=sys.stderr)
+    try:
+        return json.loads(HARVEST_SOURCES_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        print(f"Could not read {HARVEST_SOURCES_FILE}: {err}", file=sys.stderr)
+        print(
+            "Run `just fetch-harvest-sources` first (regenerates it from the CKAN API).",
             file=sys.stderr,
         )
         raise typer.Exit(1) from None
@@ -919,6 +939,41 @@ def _load_organisations_tx(tx, orgs) -> None:
         )
 
 
+def _load_harvest_sources_tx(tx, sources, org_slug_by_uuid) -> None:
+    """Insert/upsert the harvest_sources rows. org_slug_by_uuid maps the
+    CKAN organisation UUID (organization_id) to its slug (the
+    organisations PK) so the join key is denormalised at build time
+    instead of read out of the org record's json column on every query."""
+    insert_source = tx.prepare(
+        """
+        INSERT INTO harvest_sources
+            (id, title, url, type, active, frequency, organization_id,
+             org_slug, created, json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title, url = EXCLUDED.url, type = EXCLUDED.type,
+            active = EXCLUDED.active, frequency = EXCLUDED.frequency,
+            organization_id = EXCLUDED.organization_id,
+            org_slug = EXCLUDED.org_slug, created = EXCLUDED.created,
+            json = EXCLUDED.json
+        """,
+    )
+    for s in sources:
+        insert_source.run(
+            s.get("id"),
+            s.get("title") or None,
+            s.get("url") or None,
+            s.get("type") or None,
+            s.get("active"),
+            s.get("frequency") or None,
+            s.get("organization_id") or None,
+            org_slug_by_uuid.get(s.get("organization_id")),
+            s.get("created") or None,
+            # JSON.stringify(s) — no spaces, raw unicode.
+            json.dumps(s, ensure_ascii=False, separators=(",", ":")),
+        )
+
+
 def _populate_fts_tx(tx, fts_rows) -> None:
     """Populate the tags + fts (tsvector) columns. Tags are stored as a
     space-joined string for the suggestions route; fts is a tsvector for the
@@ -928,7 +983,7 @@ def _populate_fts_tx(tx, fts_rows) -> None:
         UPDATE datasets
         SET tags = ?, fts = to_tsvector(
             'english',
-            coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce(?, ''),
+            coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce(?, '')
         )
         WHERE id = ?
         """,
@@ -999,13 +1054,19 @@ def _write_meta_tx(tx, field_counts, value_counts) -> int:
 # Main build
 # ---------------------------------------------------------------------------
 def build(*, skip_embeddings: bool = False) -> None:
-    """Rebuild the database from downloads/ + organisations.json + CSVs."""
+    """Rebuild the database from downloads/ + organisations.json +
+    harvest_sources.json + CSVs."""
 
     orgs = _load_orgs()
+    # CKAN org UUID → slug (the organisations PK) — the harvest sources
+    # loader uses it to denormalise org_slug so queries join on the PK.
+    org_slug_by_uuid = {o.get("id"): o.get("name") for o in orgs}
+    harvest_sources = _load_harvest_sources()
     all_files = _collect_files()
 
     print(f"Building on {DATABASE_URL}...", file=sys.stderr)
     print(f"  {len(orgs)} organisations", file=sys.stderr)
+    print(f"  {len(harvest_sources)} harvest sources", file=sys.stderr)
 
     db = connect(DATABASE_URL)
     try:
@@ -1020,7 +1081,17 @@ def build(*, skip_embeddings: bool = False) -> None:
         db.transaction(partial(_load_organisations_tx, orgs=orgs))
         print(f"  {len(orgs)} organisations", file=sys.stderr)
 
-        # Phase 3: load datasets (batched)
+        # Phase 3: load harvest sources (downloads/harvest_sources.json)
+        db.transaction(
+            partial(
+                _load_harvest_sources_tx,
+                sources=harvest_sources,
+                org_slug_by_uuid=org_slug_by_uuid,
+            ),
+        )
+        print(f"  {len(harvest_sources)} harvest sources", file=sys.stderr)
+
+        # Phase 4: load datasets (batched)
         for i in range(0, len(all_files), READ_BATCH_SIZE):
             _process_batch(db, all_files[i : i + READ_BATCH_SIZE], st)
             if st.count % 10000 == 0 or st.count == len(all_files):
@@ -1030,19 +1101,19 @@ def build(*, skip_embeddings: bool = False) -> None:
         # creates. On the baseline DB they pre-exist.
         print("  indexes: migration-owned (0003)", file=sys.stderr)
 
-        # Phase 4: full-text search — tags + fts (tsvector) columns.
+        # Phase 5: full-text search — tags + fts (tsvector) columns.
         # idx_datasets_fts (GIN) is migration-owned (0003) — the populated
         # fts rows are indexed by the migration-created index.
         db.transaction(partial(_populate_fts_tx, fts_rows=st.fts_rows))
         print(f"  tsvector populated: {len(st.fts_rows)} datasets", file=sys.stderr)
 
-        # Phase 5: embeddings — semantic vectors for "more like this" via
+        # Phase 6: embeddings — semantic vectors for "more like this" via
         # pgvector (bge-base-en-v1.5 via llama-server). --skip-embeddings
         # keeps the build offline.
         if not skip_embeddings:
             _embed_datasets(db, st.fts_rows)
 
-        # Phase 6: views — merge the [date]-redacted rows in, then write
+        # Phase 7: views — merge the [date]-redacted rows in, then write
         views_csv = load_views_csv()
         views_by_id = views_csv.views
         if views_csv.patterns:
@@ -1064,7 +1135,7 @@ def build(*, skip_embeddings: bool = False) -> None:
             db.transaction(partial(_write_views_tx, views_by_id=views_by_id))
             print(f"  {len(views_by_id)} datasets have views data.", file=sys.stderr)
 
-        # Phase 7: metadata field usage — write the counters collected during
+        # Phase 8: metadata field usage — write the counters collected during
         # the dataset load into metadata_keys / metadata_values.
         val_rows = db.transaction(
             partial(_write_meta_tx, field_counts=st.field_counts, value_counts=st.value_counts),
@@ -1093,7 +1164,8 @@ def main(
         help="skip the llama-server embeddings phase (offline build)",
     ),
 ) -> None:
-    """Rebuild the database from downloads/ + organisations.json + CSVs."""
+    """Rebuild the database from downloads/ + organisations.json +
+    harvest_sources.json + CSVs."""
 
     try:
         build(skip_embeddings=skip_embeddings)

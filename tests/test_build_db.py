@@ -17,6 +17,9 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+import typer
+
 # The module-level guard fires on import if DATABASE_URL is unset — tests
 # never connect, so give it a dummy URL.
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost:5432/test-db")
@@ -306,3 +309,36 @@ def test_load_views_csv():
         assert result.patterns == {}
     finally:
         bd.VIEWS_FILE = original
+
+
+def test_load_harvest_sources(tmp_path, monkeypatch):
+    # happy path: reads and parses the file
+    sources = [{"id": "src-1", "title": "One", "url": "https://x/1.xml"}]
+    f = tmp_path / "harvest_sources.json"
+    f.write_text(json.dumps(sources), encoding="utf-8")
+    monkeypatch.setattr(bd, "HARVEST_SOURCES_FILE", f)
+    assert bd._load_harvest_sources() == sources
+
+
+def test_load_harvest_sources_missing_file(tmp_path, monkeypatch, capsys):
+    # missing file -> friendly error + exit 1 (points at fetch-harvest-sources)
+    monkeypatch.setattr(
+        bd,
+        "HARVEST_SOURCES_FILE",
+        tmp_path / "harvest_sources.json",
+    )
+    with pytest.raises(typer.Exit) as exc:
+        bd._load_harvest_sources()
+    assert exc.value.exit_code == 1
+    err = capsys.readouterr().err
+    assert "fetch-harvest-sources" in err
+
+
+def test_load_harvest_sources_bad_json(tmp_path, monkeypatch):
+    # unparseable file -> same friendly error path
+    f = tmp_path / "harvest_sources.json"
+    f.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(bd, "HARVEST_SOURCES_FILE", f)
+    with pytest.raises(typer.Exit) as exc:
+        bd._load_harvest_sources()
+    assert exc.value.exit_code == 1

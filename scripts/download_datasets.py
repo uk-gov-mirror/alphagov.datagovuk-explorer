@@ -356,8 +356,9 @@ def per_org_label(per_org: float) -> str:
     return "all" if per_org == float("inf") else str(int(per_org))
 
 
-def load_orgs(path: str = "organisations.json") -> list[dict] | None:
-    """Read organisations.json; None when missing/unreadable/not a list.
+def load_orgs(path: Path = Path("downloads") / "organisations.json") -> list[dict] | None:
+    """Read downloads/organisations.json; None when missing/unreadable/not
+    a list.
 
     A parse failure exits 1 with the "No organisations.json found" message
     (a parsed non-list is treated the same way).

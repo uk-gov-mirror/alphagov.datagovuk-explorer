@@ -424,7 +424,8 @@ def test_cli():
 
     # --org not found -> exit 1 + hint
     with tempfile.TemporaryDirectory() as d:
-        Path(d, "organisations.json").write_text(
+        Path(d, "downloads").mkdir(exist_ok=True)
+        Path(d, "downloads", "organisations.json").write_text(
             json.dumps([{"name": "ons", "display_name": "ONS"}]),
             encoding="utf-8",
         )
@@ -436,7 +437,8 @@ def test_cli():
 
     # bogus --per-org -> usage error (non-zero exit is all callers rely on)
     with tempfile.TemporaryDirectory() as d:
-        Path(d, "organisations.json").write_text(
+        Path(d, "downloads").mkdir(exist_ok=True)
+        Path(d, "downloads", "organisations.json").write_text(
             json.dumps([{"name": "ons"}]),
             encoding="utf-8",
         )
@@ -452,7 +454,8 @@ def test_cli():
 
     # --orgs 0 / --offset -1 -> usage error (non-zero exit)
     with tempfile.TemporaryDirectory() as d:
-        Path(d, "organisations.json").write_text(
+        Path(d, "downloads").mkdir(exist_ok=True)
+        Path(d, "downloads", "organisations.json").write_text(
             json.dumps([{"name": "ons"}]),
             encoding="utf-8",
         )

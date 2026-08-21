@@ -42,6 +42,26 @@ class Organisation(models.Model):
         return self.slug
 
 
+class HarvestSource(models.Model):
+    id = models.TextField(primary_key=True)
+    title = models.TextField(blank=True, null=True)
+    url = models.TextField(blank=True, null=True)
+    type = models.TextField(blank=True, null=True)
+    active = models.BooleanField(blank=True, null=True)
+    frequency = models.TextField(blank=True, null=True)
+    organization_id = models.TextField(blank=True, null=True)
+    org_slug = models.TextField(blank=True, null=True)
+    created = models.TextField(blank=True, null=True)
+    json = models.TextField(blank=True, null=True)
+
+    class Meta:
+        app_label = "explorer"
+        db_table = "harvest_sources"
+
+    def __str__(self):
+        return self.title or self.id
+
+
 class Dataset(models.Model):
     id = models.TextField(primary_key=True)
     org_slug = models.TextField()
@@ -59,6 +79,10 @@ class Dataset(models.Model):
     temporal_periods = models.JSONField(blank=True, null=True)
     harvested = models.IntegerField(db_default=0)
     harvest_source_title = models.TextField(blank=True, null=True)
+    # The CKAN harvest source id (the datasets→sources join key, from the
+    # dataset's harvest_source_id extra). Not a FK: harvest_sources is keyed
+    # by id but the build truncates both tables independently.
+    harvest_source_id = models.TextField(blank=True, null=True)
     views = models.IntegerField(db_default=0)
     tags = models.TextField(blank=True, null=True)
 

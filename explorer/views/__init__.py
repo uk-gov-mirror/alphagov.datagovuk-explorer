@@ -9,6 +9,7 @@ from .core import _page_param, health, not_found
 from .dashboard import dashboard
 from .dataset import dataset
 from .datasets import datasets
+from .harvesters import harvester, harvesters
 from .links import links
 from .metadata import metadata_detail, metadata_overview
 from .organisation import organisation
@@ -23,6 +24,8 @@ __all__ = [
     "dashboard",
     "dataset",
     "datasets",
+    "harvester",
+    "harvesters",
     "health",
     "links",
     "metadata_detail",
