@@ -31,6 +31,11 @@ dev = [
   "ruff>=0.16.1",
 ]
 
+[tool.uv]
+# Force sqlparse past 0.5.5: django pulls it transitively, but 0.5.5 has 8
+# known vulnerabilities (all fixed in 0.6.0) — see `uv audit`.
+override-dependencies = ["sqlparse>=0.6.0"]
+
 [tool.ruff]
 line-length = 120
 # Exclude a variety of commonly ignored directories.
