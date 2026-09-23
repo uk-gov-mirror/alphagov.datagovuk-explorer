@@ -1,12 +1,10 @@
 """Unit tests for scripts/build_db.py (offline — no database).
 
 Covers the deterministic pure functions — the algorithmic risk
-lives here: parse_csv_line, temporal_val/year/periods, extract_host,
-normalise_format, normalize_title, field_value_str, leading-digit int
-semantics, and the views-CSV resolution ([date]-redacted ids, wildcard
-matching, title fallback). Edge cases: malformed URLs, www. hosts,
-out-of-range ports, IANA media-type URLs, OGC prefixes, messy temporal
-values, quoted CSV fields, non-English title suffixes.
+lives here: temporal_val/year/periods, extract_host, normalise_format,
+field_value_str, and the views-CSV loader. Edge cases: malformed URLs,
+www. hosts, out-of-range ports, IANA media-type URLs, OGC prefixes,
+messy temporal values.
 
 The DB write path is verified separately by a scratch-DB table diff
 against a full build of the same data.
@@ -15,7 +13,6 @@ Run with: uv run pytest tests/test_build_db.py
 
 import json
 import os
-from pathlib import Path
 
 import pytest
 import typer
@@ -25,26 +22,6 @@ import typer
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost:5432/test-db")
 
 import scripts.build_db as bd
-
-
-def test_parse_csv_line():
-    # quoted field containing commas (dataset titles)
-    assert bd.parse_csv_line('a,"b,c",d') == ["a", "b,c", "d"]
-    # escaped quotes inside quotes
-    assert bd.parse_csv_line('a,"say ""hi""",d') == ["a", 'say "hi"', "d"]
-    # no quotes
-    assert bd.parse_csv_line("a,b,c") == ["a", "b", "c"]
-    # trailing comma yields an empty final field
-    assert bd.parse_csv_line("a,b,") == ["a", "b", ""]
-
-
-def test_parse_int():
-    assert bd._parse_int("1234") == 1234
-    assert bd._parse_int("133836,Grand total") == 133836  # leading digits
-    assert bd._parse_int("  -42x") == -42
-    assert bd._parse_int("abc") is None  # no digits -> rejected
-    assert bd._parse_int("") is None
-    assert bd._parse_int("0") == 0
 
 
 def test_temporal_val():
@@ -270,21 +247,6 @@ def test_normalise_format():
     assert bd.normalise_format(123) is None
 
 
-def test_normalize_title():
-    assert bd.normalize_title("Some Data - data.gov.uk") == "some data"
-    assert bd.normalize_title("Some Data - data.gov.uk") == "some data"  # en-dash
-    assert bd.normalize_title("Some Data — data.gov.uk") == "some data"  # em-dash
-    assert bd.normalize_title("Housing  Stats 2020 ") == "housing stats 2020"
-    assert bd.normalize_title("  ") == ""
-    assert bd.normalize_title(None) == ""
-    # non-English suffixes (a fixed list of page labels)
-    assert bd.normalize_title("データ - 国立データライブラリ") == "データ"
-    assert bd.normalize_title("Nacional - biblioteca nacional de datos") == "nacional"
-    assert bd.normalize_title("Données - bibliothèque nationale de données") == "données"
-    # "national data library" (no dash between words) also matches
-    assert bd.normalize_title("Foo - national data library") == "foo"
-
-
 def test_field_value_str():
     assert bd.field_value_str(None) == "(empty)"
     assert bd.field_value_str("") == "(empty)"
@@ -306,85 +268,29 @@ def test_field_value_str():
     assert not truncated.endswith("...")
 
 
-def test_resolve_date_pattern_views():
-    # wildcard match on the fixed prefix (first 8 hex chars bucket)
-    patterns = {"cb7ae6f0-4be6-XX-47e5ce24a11f": bd._Pattern(views=42, titles={"T"})}
-    all_ids = [
-        "cb7ae6f0-4be6-12345678-47e5ce24a11f",
-        "00000000-9999-9999-9999-999999999999",
-    ]
-    title_ids = {}
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {"cb7ae6f0-4be6-12345678-47e5ce24a11f": 42}
+def test_load_views_csv(tmp_path, monkeypatch):
+    # missing file -> empty dict
+    monkeypatch.setattr(bd, "VIEWS_FILE", tmp_path / "nope.csv")
+    assert bd.load_views_csv() == {}
 
-    # mid-segment wildcard (real CSV shape: "...-8e2f-[date]2762")
-    patterns = {"5025c6bd-53ca-4556-8e2f-XX2762": bd._Pattern(views=9, titles={"T"})}
-    all_ids = ["5025c6bd-53ca-4556-8e2f-4d3c2762"]
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {"5025c6bd-53ca-4556-8e2f-4d3c2762": 9}
-
-    # ambiguous wildcard (both ids fit) -> title fallback (unique title wins)
-    patterns = {
-        "XX-4be6-8b71-9a41-111111111111": bd._Pattern(views=7, titles={"My Data"}),
-    }
-    all_ids = [
-        "aaaaaaaa-4be6-8b71-9a41-111111111111",
-        "bbbbbbbb-4be6-8b71-9a41-111111111111",
-    ]
-    title_ids = {"my data": ["aaaaaaaa-4be6-8b71-9a41-111111111111"]}
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {"aaaaaaaa-4be6-8b71-9a41-111111111111": 7}
-
-    # title ambiguous (2 ids share the title) -> unresolved
-    title_ids = {
-        "my data": [
-            "aaaaaaaa-4be6-8b71-9a41-111111111111",
-            "bbbbbbbb-4be6-8b71-9a41-111111111111",
-        ],
-    }
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {}
-
-    # suffix-only pattern (no prefix fragment): the suffix filter narrows to
-    # one id even with an ambiguous title map
-    all_ids = [
-        "aaaaaaaa-4be6-8b71-9a41-111111111111",
-        "cccccccc-0000-0000-0000-000000000000",
-    ]
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {"aaaaaaaa-4be6-8b71-9a41-111111111111": 7}
-
-    # pattern with no fixed fragment at all -> skipped
-    assert (
-        bd.resolve_date_pattern_views(
-            {"XX": bd._Pattern(views=1, titles={"T"})},
-            all_ids,
-            title_ids,
-        )
-        == {}
+    # happy path: extracts UUIDs from dataset paths, sums clicks
+    csv_file = tmp_path / "views.csv"
+    csv_file.write_text(
+        "path,clicks\n"
+        "/dataset/aaaaaaaa-1111-2222-3333-444444444444/slug,10\n"
+        "/dataset/aaaaaaaa-1111-2222-3333-444444444444/slug,5\n"
+        "/dataset/bbbbbbbb-1111-2222-3333-444444444444/other,3\n"
+        "/,100\n"  # homepage — skipped
+        "/search?q=foo,7\n"  # search — skipped
+        "/dataset/bbbbbbbb-1111-2222-3333-444444444444/other,0\n",  # zero — skipped
+        encoding="utf-8",
     )
-
-    # multiple patterns accumulate views on the same id
-    patterns = {
-        "cb7ae6f0-4be6-XX-47e5ce24a11f": bd._Pattern(views=10, titles={"T"}),
-        "cb7ae6f0-XX-12345678-47e5ce24a11f": bd._Pattern(views=5, titles={"U"}),
+    monkeypatch.setattr(bd, "VIEWS_FILE", csv_file)
+    result = bd.load_views_csv()
+    assert result == {
+        "aaaaaaaa-1111-2222-3333-444444444444": 15,
+        "bbbbbbbb-1111-2222-3333-444444444444": 3,
     }
-    all_ids = ["cb7ae6f0-4be6-12345678-47e5ce24a11f"]
-    resolved = bd.resolve_date_pattern_views(patterns, all_ids, title_ids)
-    assert resolved == {"cb7ae6f0-4be6-12345678-47e5ce24a11f": 15}
-
-
-def test_load_views_csv():
-    # no file -> empty result (VIEWS_FILE is a module constant pointing at
-    # the real repo file; monkeypatch to a nonexistent path for the test)
-    original = bd.VIEWS_FILE
-    try:
-        bd.VIEWS_FILE = Path("/nonexistent/directory-views.csv")
-        result = bd.load_views_csv()
-        assert result.views == {}
-        assert result.patterns == {}
-    finally:
-        bd.VIEWS_FILE = original
 
 
 def test_load_harvest_sources(tmp_path, monkeypatch):

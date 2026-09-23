@@ -24,7 +24,6 @@ import json
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -43,35 +42,13 @@ READ_BATCH_SIZE = 2000
 # Value-distribution table: strings/JSON truncated at this length.
 MAX_FIELD_VALUE_LENGTH = 500
 
-# directory-views-year.csv rows are title, url, views.
-VIEWS_CSV_COLUMNS = 3
-
 DATA_DIR = Path(__file__).resolve().parent.parent / "downloads"
 ORGS_FILE = DATA_DIR / "organisations.json"
 HARVEST_SOURCES_FILE = DATA_DIR / "harvest_sources.json"
-VIEWS_FILE = Path(__file__).resolve().parent.parent / "data" / "directory-views-year.csv"
+VIEWS_FILE = Path(__file__).resolve().parent.parent / "data" / "datagovuk-pages-2.csv"
 DATABASE_URL = database_url()
 
 _WS_RE = re.compile(r"\s+")
-
-
-# ---------------------------------------------------------------------------
-# CSV parsing (data/directory-views-year.csv)
-# ---------------------------------------------------------------------------
-def parse_csv_line(line: str) -> list[str]:
-    """Parse a single CSV line, handling quoted fields (titles contain
-    commas)."""
-
-    return next(csv.reader([line]))
-
-
-def _parse_int(s: str) -> int | None:
-    """Leading-digit semantics for the views CSV: leading whitespace,
-    optional sign, then as many digits as possible. None when there are no
-    digits (the caller treats that as "no count")."""
-
-    m = re.match(r"\s*[+-]?\d+", s)
-    return int(m.group(0)) if m else None
 
 
 # ---------------------------------------------------------------------------
@@ -472,30 +449,6 @@ def normalise_format(raw):
 
 
 # ---------------------------------------------------------------------------
-# Title normalisation
-# ---------------------------------------------------------------------------
-# Strip the page-variant suffix from analytics titles and normalise for
-# matching. The alternation contains the non-English labels data.gov.uk
-# renders (a fixed set of page suffixes, so copy exactly rather than
-# approximate).
-_TITLE_SUFFIX_RE = re.compile(
-    r"\s*[--—]\s*(data\.gov\.uk|national data library|国家数据库|国家数据图书馆|"
-    r"国立データライブラリ|biblioteca nacional de datos|bibliothèque nationale de données|"
-    r"nationale databibliothek|nationale datenbank|biblioteca nazionale di dati)$",
-)
-
-
-def normalize_title(raw):
-    """Strip the page-variant suffix from analytics titles and normalise for
-    matching."""
-
-    s = (raw or "").lower()
-    s = _WS_RE.sub(" ", s).strip()
-    s = _TITLE_SUFFIX_RE.sub("", s)
-    return s.strip()
-
-
-# ---------------------------------------------------------------------------
 # Metadata field usage
 # ---------------------------------------------------------------------------
 def field_value_str(v):
@@ -526,141 +479,32 @@ def field_value_str(v):
 
 
 # ---------------------------------------------------------------------------
-# Dataset views (data/directory-views-year.csv — tracked in git, not in downloads/)
+# Dataset views (data/datagovuk-pages-2.csv — tracked in git)
 # ---------------------------------------------------------------------------
-# data.gov.uk exports directory page views as a CSV whose rows look like:
-#   Page title,Page location,Views
-#   some dataset title,https://www.data.gov.uk/dataset/<uuid>/<slug>,1234
-# The export also redacts parts of some dataset UUIDs, replacing chunks of
-# the id with the literal text "[date]". We resolve those rows below.
+# Search Console clicks per page. The CSV has two columns: path (relative,
+# e.g. /dataset/<uuid>/<slug>) and clicks. We extract the UUID and sum.
 
-_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-_VIEW_URL_RE = re.compile(r"data\.gov\.uk/dataset/([^/?#]+)")
+_VIEWS_PATH_RE = re.compile(r"^/dataset/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
 
 
-@dataclass
-class _Pattern:
-    """Aggregated views for one [date]-redacted id pattern."""
+def load_views_csv() -> dict[str, int]:
+    """Read the views CSV and return {dataset_uuid: total_clicks}."""
 
-    views: int = 0
-    titles: set = field(default_factory=set)
-
-
-@dataclass
-class ViewsCsv:
-    """Parsed views CSV: clean-UUID rows and [date]-redacted patterns."""
-
-    views: dict = field(default_factory=dict)  # id -> total views
-    patterns: dict = field(default_factory=dict)  # key -> _Pattern
-
-
-def load_views_csv() -> ViewsCsv:
-    """Read directory-views-year.csv (if present) and split it into clean
-    UUID rows and [date]-redacted patterns."""
-
-    result = ViewsCsv()
     if not VIEWS_FILE.exists():
-        return result
+        return {}
 
-    for line in VIEWS_FILE.read_text(encoding="utf-8").split("\n"):
-        trimmed = line.strip()
-        if not trimmed or trimmed.startswith(("#", "---")):
-            continue
-
-        cols = parse_csv_line(line)
-        if len(cols) < VIEWS_CSV_COLUMNS:
-            continue  # e.g. the "Grand total" row
-
-        url = cols[1]
-        views = _parse_int(cols[2])
-        if not url or views is None or views <= 0:
-            continue
-
-        m = _VIEW_URL_RE.search(url)
-        if not m:
-            continue  # not a dataset page (404s, etc.)
-
-        id_part = m.group(1)
-        if "[date]" in id_part:
-            key = id_part.replace("[date]", "XX")
-            p = result.patterns.get(key)
-            if p is None:
-                p = _Pattern()
-                result.patterns[key] = p
-            p.views += views
-            p.titles.add(cols[0])
-        elif _UUID_RE.match(id_part):
-            result.views[id_part] = result.views.get(id_part, 0) + views
+    result: dict[str, int] = {}
+    with VIEWS_FILE.open(encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            m = _VIEWS_PATH_RE.match(row["path"])
+            if not m:
+                continue
+            clicks = int(row["clicks"])
+            if clicks <= 0:
+                continue
+            uid = m.group(1)
+            result[uid] = result.get(uid, 0) + clicks
     return result
-
-
-# "[date]" can replace a variable-length chunk of a UUID (sometimes several
-# dash-separated segments), so the wildcard matches one or more hex groups.
-DATE_WILDCARD = r"(?:[0-9a-f]+(?:-[0-9a-f]+)*)"
-
-
-def _title_fallback(data, title_ids) -> str | None:
-    """Page-title fallback for a [date]-redacted views row — accept only
-    when exactly one dataset matches the normalized title."""
-    for raw_title in data.titles:
-        base = normalize_title(raw_title)
-        if not base:
-            continue
-        ids = title_ids.get(base)
-        if ids and len(set(ids)) == 1:
-            return ids[0]
-    return None
-
-
-def resolve_date_pattern_views(patterns: dict, all_ids: list, title_ids: dict) -> dict:
-    """Resolve rows whose dataset id was redacted as "[date]" in the export:
-
-      1. Treat "[date]" as a wildcard and find a dataset whose id fits the
-         remaining fragments (unique match only).
-      2. Fall back to the page title (stripped of its " - data.gov.uk"-style
-         suffix), again only when it matches exactly one dataset.
-
-    Rows we can't resolve confidently (page-not-found junk, re-published
-    datasets with stale ids) are skipped. Returns {id: views}."""
-
-    # Index ids by their first 8 hex chars so wildcard matching stays fast
-    ids_by_first_seg: dict = {}
-    for id_ in all_ids:
-        seg = id_[:8]
-        if seg not in ids_by_first_seg:
-            ids_by_first_seg[seg] = []
-        ids_by_first_seg[seg].append(id_)
-
-    resolved: dict = {}
-
-    for key, data in patterns.items():
-        re_pattern = re.compile(rf"^{key.replace('XX', DATE_WILDCARD)}$")
-
-        # Narrow candidates using the fixed fragments around the wildcards
-        parts = key.split("XX")
-        prefix = parts[0]
-        suffix = parts[-1]
-        if prefix:
-            first_seg = prefix.split("-")[0]
-            bucket = ids_by_first_seg.get(first_seg) if re.fullmatch(r"[0-9a-f]{8}", first_seg) else None
-            candidates = [id_ for id_ in bucket if id_.startswith(prefix)] if bucket else all_ids
-        elif suffix:
-            candidates = [id_ for id_ in all_ids if id_.endswith(suffix)]
-        else:
-            continue  # no fixed fragment at all — nothing to anchor on
-
-        hit_ids = list(
-            dict.fromkeys(id_ for id_ in candidates if re_pattern.fullmatch(id_)),
-        )
-        if len(hit_ids) == 1:
-            resolved[hit_ids[0]] = resolved.get(hit_ids[0], 0) + data.views
-            continue
-
-        # Title fallback — only accept when exactly one dataset matches
-        title_hit = _title_fallback(data, title_ids)
-        if title_hit:
-            resolved[title_hit] = resolved.get(title_hit, 0) + data.views
-    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -732,9 +576,7 @@ class _BuildState:
     def __init__(self) -> None:
         self.count = 0
         self.skipped = 0
-        self.all_ids: list = []
         self.fts_rows: list = []
-        self.title_ids: dict = {}
         self.field_counts: dict = {}
         self.value_counts: dict = {}
         self.seen_meta_ids: set = set()
@@ -887,13 +729,6 @@ def _meta_counts(ds: dict, st: _BuildState) -> None:
             fc["nonEmpty"] += 1
 
 
-def _title_index(ds: dict, st: _BuildState) -> None:
-    """Index the dataset title for the views-pattern resolution."""
-    norm_title = normalize_title(ds.get("title"))
-    if norm_title:
-        st.title_ids.setdefault(norm_title, []).append(ds.get("id"))
-
-
 def _process_batch(db, batch: list[dict], st: _BuildState) -> None:
     """Process files in batches: read each batch in parallel (overlapping
     I/O via threads), parse, then insert in a single transaction."""
@@ -935,10 +770,8 @@ def _process_batch(db, batch: list[dict], st: _BuildState) -> None:
             for row in _dataset_period_rows(ds):
                 insert_period.run(*row)
 
-            st.all_ids.append(ds.get("id"))
             st.fts_rows.append(_fts_row(ds))
             _meta_counts(ds, st)
-            _title_index(ds, st)
             st.count += 1
 
     db.transaction(_tx)
@@ -1297,24 +1130,8 @@ def build() -> None:
         db.transaction(partial(_populate_fts_tx, fts_rows=st.fts_rows))
         print(f"  tsvector populated: {len(st.fts_rows)} datasets", file=sys.stderr)
 
-        # Phase 6: views — merge the [date]-redacted rows in, then write
-        views_csv = load_views_csv()
-        views_by_id = views_csv.views
-        if views_csv.patterns:
-            date_views = resolve_date_pattern_views(
-                views_csv.patterns,
-                st.all_ids,
-                st.title_ids,
-            )
-            print(
-                f"  views: {len(views_csv.views)} ids from clean URLs, "
-                f"{len(date_views)} from [date]-redacted URLs "
-                f"({len(views_csv.patterns) - len(date_views)} unmatched)",
-                file=sys.stderr,
-            )
-            for id_, v in date_views.items():
-                views_by_id[id_] = views_by_id.get(id_, 0) + v
-
+        # Phase 6: views (search clicks per dataset)
+        views_by_id = load_views_csv()
         if views_by_id:
             db.transaction(partial(_write_views_tx, views_by_id=views_by_id))
             print(f"  {len(views_by_id)} datasets have views data.", file=sys.stderr)
@@ -1380,6 +1197,24 @@ def dataset_api() -> None:
         print(f"dataset_api: {n} datasets")
         for row in by_cat:
             print(f"  {row['api_category']}: {row['n']}")
+    finally:
+        db.close()
+
+
+@app.command()
+def views() -> None:
+    """Reload dataset view counts from the views CSV.
+
+    Resets all views to 0, then loads the CSV — runs in seconds against
+    the existing datasets table, no full rebuild needed."""
+
+    db = connect(DATABASE_URL)
+    try:
+        db.exec("UPDATE datasets SET views = 0")
+        views_by_id = load_views_csv()
+        if views_by_id:
+            db.transaction(partial(_write_views_tx, views_by_id=views_by_id))
+        print(f"views: {len(views_by_id)} datasets updated")
     finally:
         db.close()
 

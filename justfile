@@ -82,6 +82,11 @@ build-db: migrate
 build-dataset-api:
     uv run --env-file .env python -m scripts.build_db dataset-api
 
+# Reload dataset view counts from the views CSV (data/datagovuk-pages-2.csv)
+# — fast, no full rebuild needed. Use when the views CSV changes.
+ingest-views:
+    uv run --env-file .env python -m scripts.build_db views
+
 # Rebuild just the dataset_content_hash table (TRUNCATE + INSERT) — fast,
 # no full rebuild needed. Use when tweaking the duplicate-detection hash.
 build-dataset-content-hash:
