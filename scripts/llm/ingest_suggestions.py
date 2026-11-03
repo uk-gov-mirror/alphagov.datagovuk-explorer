@@ -58,6 +58,18 @@ def ingest(db, records: list[dict]) -> int:
     if skipped:
         print(f"Skipped {skipped} suggestion(s) — ok:false or dataset not in local DB.")
 
+    # A retitled dataset gets a new filename, leaving the old file behind: keep
+    # the most recently classified record per dataset and warn about the rest.
+    latest: dict[str, dict] = {}
+    for r in present:
+        kept = latest.get(r["dataset_id"])
+        if kept is None or r.get("classified_at", "") > kept.get("classified_at", ""):
+            latest[r["dataset_id"]] = r
+    duplicates = len(present) - len(latest)
+    if duplicates:
+        print(f"Warning: skipped {duplicates} older duplicate suggestion(s) for the same dataset.", file=sys.stderr)
+    present = list(latest.values())
+
     copy_sql = (
         'COPY suggestions (dataset_ckan_id, theme, theme_confidence, tags, title, "desc", created_at, json) FROM STDIN'
     )
