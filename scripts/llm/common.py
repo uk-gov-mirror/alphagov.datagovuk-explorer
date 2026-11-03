@@ -133,7 +133,9 @@ def _send_openai_compat(
     if api_key:
         body["thinking"] = {"type": "disabled"}
     body["max_tokens"] = MAX_TOKENS
-    body["temperature"] = TEMPERATURE
+    if not api_key:
+        # Remote models (Haiku 5.5) only accept the default temperature.
+        body["temperature"] = TEMPERATURE
 
     res = client.post(
         f"{base_url}/v1/chat/completions",
