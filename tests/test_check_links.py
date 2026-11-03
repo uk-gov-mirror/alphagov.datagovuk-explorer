@@ -375,14 +375,23 @@ def test_load_urls_errors_only_filters_to_error_results():
     assert "JOIN link_check_results" in sql_arg
 
 
-def test_load_urls_only_host():
+def test_load_urls_domain():
     db = _mock_db([{"url": "http://data.gov.uk/a"}])
-    cl.load_urls(db, only_host="data.gov.uk")
+    cl.load_urls(db, domain="data.gov.uk")
     sql_arg = db.prepare.call_args[0][0]
     assert "split_part" in sql_arg
     params = db.prepare.return_value.all.call_args[0]
     assert "data.gov.uk" in params
     assert "%.data.gov.uk" in params
+
+
+def test_load_urls_publisher():
+    db = _mock_db([{"url": "http://example.com/a"}])
+    cl.load_urls(db, publisher="some-org")
+    sql_arg = db.prepare.call_args[0][0]
+    assert "l.org_slug = ?" in sql_arg
+    params = db.prepare.return_value.all.call_args[0]
+    assert params == ("some-org",)
 
 
 def test_write_result_calls_upsert():

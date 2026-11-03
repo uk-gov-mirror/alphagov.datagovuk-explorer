@@ -462,15 +462,19 @@ def load_urls(
     force: bool = False,
     errors_only: bool = False,
     limit: int | None = None,
-    only_host: str | None = None,
+    domain: str | None = None,
+    publisher: str | None = None,
 ) -> list[str]:
     """Return unchecked (or all, with --force; or error results only, with --errors-only) http URLs from links."""
     clauses = []
     params: list[Any] = []
 
-    if only_host:
+    if domain:
         clauses.append("AND (split_part(l.url, '/', 3) = ? OR split_part(l.url, '/', 3) LIKE ?)")
-        params.extend([only_host, f"%.{only_host}"])
+        params.extend([domain, f"%.{domain}"])
+    if publisher:
+        clauses.append("AND l.org_slug = ?")
+        params.append(publisher)
 
     extra = "\n  ".join(clauses)
     if errors_only:
@@ -686,7 +690,8 @@ async def _log_progress(
 @app.command()
 def main(
     limit: int = typer.Option(0, help="Only check the first N unchecked URLs (0 = all)"),
-    only_host: str = typer.Option("", help="Restrict to URLs on this host or its subdomains"),
+    domain: str = typer.Option("", help="Restrict to URLs on this domain or its subdomains"),
+    publisher: str = typer.Option("", help="Restrict to URLs from this publisher (organisation slug)"),
     workers: int = typer.Option(200, help="URLs in flight at once"),
     pw_pages: int = typer.Option(70, help="Max concurrent Playwright pages"),
     timeout_ms: int = typer.Option(15_000, help="HTTP timeout per request (ms)"),
@@ -708,7 +713,8 @@ def main(
     asyncio.run(
         _main(
             limit=limit or None,
-            only_host=only_host or None,
+            domain=domain or None,
+            publisher=publisher or None,
             workers=workers,
             pw_pages=pw_pages,
             timeout_ms=timeout_ms,
@@ -734,7 +740,8 @@ def _load_config(config_file: str) -> dict:
 async def _main(
     *,
     limit: int | None,
-    only_host: str | None,
+    domain: str | None,
+    publisher: str | None,
     workers: int,
     pw_pages: int,
     timeout_ms: int,
@@ -764,7 +771,7 @@ async def _main(
             print(f"  Marked {n_uncheckable} uncheckable URL(s) as url:malformed", flush=True)
 
         print("Loading URLs…", flush=True)
-        urls = load_urls(db, force=force, errors_only=errors_only, limit=limit, only_host=only_host)
+        urls = load_urls(db, force=force, errors_only=errors_only, limit=limit, domain=domain, publisher=publisher)
         total = len(urls)
         print(f"  {total} URL(s) to check", flush=True)
         if not total:
